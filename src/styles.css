@@ -1,0 +1,350 @@
+:host {
+  color: #e8f1ff;
+  color-scheme: dark;
+  font-family: "Avenir Next", "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.bw-host,
+.bw-app {
+  width: 100%;
+}
+
+.bw-app {
+  min-height: 100%;
+  padding: 18px;
+}
+
+.bw-card {
+  background:
+    radial-gradient(circle at top right, rgba(53, 196, 255, 0.18), transparent 36%),
+    radial-gradient(circle at bottom left, rgba(74, 123, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, #0d1522 0%, #09111d 100%);
+  border: 1px solid rgba(136, 163, 213, 0.18);
+  border-radius: 24px;
+  box-shadow:
+    0 24px 60px rgba(3, 8, 18, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  margin: 0 auto;
+  max-width: 460px;
+  overflow: hidden;
+  padding: 24px;
+  position: relative;
+}
+
+.bw-card::after {
+  background: linear-gradient(
+    90deg,
+    rgba(94, 227, 255, 0.24),
+    rgba(87, 127, 255, 0.08),
+    transparent
+  );
+  content: "";
+  height: 1px;
+  left: 24px;
+  position: absolute;
+  right: 24px;
+  top: 76px;
+}
+
+.bw-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.bw-header h1 {
+  font-size: 1.6rem;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin: 6px 0 0;
+}
+
+.bw-eyebrow {
+  color: #7ab6ff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.bw-description {
+  color: #a7bad9;
+  font-size: 0.96rem;
+  line-height: 1.55;
+  margin: 0 0 18px;
+  max-width: 38ch;
+}
+
+.bw-badges {
+  display: grid;
+  gap: 8px;
+}
+
+.bw-badge {
+  background: rgba(15, 26, 43, 0.78);
+  border: 1px solid rgba(136, 163, 213, 0.16);
+  border-radius: 999px;
+  color: #c6d6f1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.bw-badge-accent {
+  background: linear-gradient(135deg, rgba(76, 219, 255, 0.16), rgba(87, 127, 255, 0.18));
+  color: #eef8ff;
+}
+
+.bw-wallet-row {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
+  margin-bottom: 0;
+}
+
+.bw-wallet-stack {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.bw-wallet-picker {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bw-wallet-option {
+  align-items: flex-start;
+  background: rgba(7, 15, 29, 0.92);
+  border: 1px solid rgba(128, 156, 208, 0.18);
+  border-radius: 16px;
+  color: #edf4ff;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px;
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease,
+    opacity 140ms ease;
+}
+
+.bw-wallet-option span {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.bw-wallet-option small {
+  color: #7e98bf;
+  font-size: 0.73rem;
+}
+
+.bw-wallet-option:hover {
+  border-color: rgba(86, 212, 255, 0.34);
+  transform: translateY(-1px);
+}
+
+.bw-wallet-option-active {
+  background: linear-gradient(180deg, rgba(14, 28, 47, 0.98), rgba(9, 19, 33, 0.98));
+  border-color: rgba(86, 212, 255, 0.54);
+  box-shadow: 0 0 0 3px rgba(76, 219, 255, 0.1);
+}
+
+.bw-wallet-option-disabled {
+  opacity: 0.6;
+}
+
+.bw-wallet-meta {
+  color: #8aa2c7;
+  display: grid;
+  font-size: 0.82rem;
+  gap: 4px;
+}
+
+.bw-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.bw-field {
+  display: grid;
+  gap: 8px;
+}
+
+.bw-field span {
+  color: #d6e3f8;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.bw-field small {
+  color: #7290bd;
+  font-size: 0.74rem;
+}
+
+.bw-field-full {
+  grid-column: 1 / -1;
+}
+
+.bw-field input,
+.bw-field select {
+  appearance: none;
+  background: rgba(7, 15, 29, 0.92);
+  border: 1px solid rgba(128, 156, 208, 0.18);
+  border-radius: 16px;
+  color: #edf4ff;
+  font: inherit;
+  min-height: 50px;
+  outline: none;
+  padding: 0 14px;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+  width: 100%;
+}
+
+.bw-field input:focus,
+.bw-field select:focus {
+  border-color: rgba(86, 212, 255, 0.54);
+  box-shadow: 0 0 0 4px rgba(76, 219, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.bw-actions {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.bw-button {
+  background: linear-gradient(135deg, #56d4ff 0%, #5480ff 100%);
+  border: 0;
+  border-radius: 16px;
+  color: #041120;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  min-height: 50px;
+  padding: 0 16px;
+  transition:
+    filter 140ms ease,
+    transform 140ms ease,
+    opacity 140ms ease;
+}
+
+.bw-button:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+
+.bw-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.bw-button-secondary {
+  background: rgba(12, 22, 39, 0.94);
+  border: 1px solid rgba(136, 163, 213, 0.18);
+  color: #edf4ff;
+}
+
+.bw-summary {
+  background: rgba(6, 13, 25, 0.68);
+  border: 1px solid rgba(128, 156, 208, 0.12);
+  border-radius: 20px;
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.bw-summary-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.bw-summary-row span {
+  color: #8da5c7;
+  font-size: 0.84rem;
+}
+
+.bw-summary-row strong {
+  color: #f5fbff;
+  font-size: 0.92rem;
+  max-width: 60%;
+  text-align: right;
+}
+
+.bw-footnote {
+  color: #7a96bf;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  margin: 14px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.bw-error {
+  background: rgba(154, 46, 74, 0.18);
+  border: 1px solid rgba(228, 104, 133, 0.26);
+  border-radius: 16px;
+  color: #ffd7df;
+  font-size: 0.85rem;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+}
+
+@media (max-width: 560px) {
+  .bw-app {
+    padding: 12px;
+  }
+
+  .bw-card {
+    border-radius: 20px;
+    padding: 18px;
+  }
+
+  .bw-header,
+  .bw-wallet-row,
+  .bw-wallet-picker,
+  .bw-grid,
+  .bw-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .bw-badges {
+    width: 100%;
+  }
+
+  .bw-summary-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bw-summary-row strong {
+    max-width: 100%;
+    text-align: left;
+  }
+}
