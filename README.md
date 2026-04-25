@@ -55,9 +55,10 @@ VITE_BUNGEE_FEE_TAKER_ADDRESS=
 
 ## Build output
 
-After running `npm run build`, the widget bundle is available at:
+After running `npm run build`, the bundle and preview page are available at:
 
 ```txt
+dist/index.html
 dist/widget.js
 ```
 
@@ -75,6 +76,14 @@ Because the repository name is `widget`, the hosted script URL will be:
 ```html
 https://YOUR_GITHUB_USERNAME.github.io/widget/widget.js
 ```
+
+The GitHub Pages front page will also serve a live preview at:
+
+```html
+https://YOUR_GITHUB_USERNAME.github.io/widget/
+```
+
+That preview page loads the same deployed `widget.js` bundle and auto-mounts the widget for quick testing.
 
 ## Squarespace embed code
 
