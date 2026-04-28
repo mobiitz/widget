@@ -7,14 +7,10 @@ import {
   parseUnits
 } from "viem";
 import {
-  BUNGEE_ENVIRONMENT_LABEL,
-  buildTx,
-  checkStatus,
   getQuote,
-  type ApprovalData,
-  type QuoteRoute,
-  type StatusResponse
-} from "../services/bungee";
+  ZEROX_ENVIRONMENT_LABEL,
+  type ZeroExQuote
+} from "../services/zerox";
 import {
   NATIVE_TOKEN_ADDRESS,
   SUPPORTED_CHAINS,
@@ -31,15 +27,15 @@ type TokenOption = {
 
 type QuoteState = {
   inputAmountBaseUnits: string;
-  route: QuoteRoute;
-  serverReqId: string | null;
+  requestId: string | null;
+  route: ZeroExQuote;
 };
 
-const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)"
 ]);
+const ETHEREUM_ONLY_CHAINS = SUPPORTED_CHAINS.filter((chain) => chain.id === 1);
 
 const TOKENS_BY_CHAIN: Record<number, TokenOption[]> = {
   1: [
@@ -199,50 +195,14 @@ function formatTokenAmount(amount: string | undefined, decimals: number) {
   }
 }
 
-function getRouteLabel(route: QuoteRoute) {
-  if (route.usedBridgeNames?.length) {
-    return route.usedBridgeNames.join(" -> ");
-  }
-
-  const stepNames =
-    route.userTxs?.flatMap((userTx) =>
-      userTx.steps?.map(
-        (step) => step.protocolName || step.tool || step.stepType || "Route step"
-      ) ?? []
-    ) ?? [];
-
-  const uniqueStepNames = [...new Set(stepNames)];
-
-  return uniqueStepNames.length
-    ? uniqueStepNames.join(" -> ")
-    : "Best available route";
+function getRouteLabel(route: ZeroExQuote) {
+  const fills = route.route?.fills ?? [];
+  const uniqueSources = [...new Set(fills.map((fill) => fill.source))];
+  return uniqueSources.length ? uniqueSources.join(" -> ") : "Best available route";
 }
 
-function getEstimatedOutput(route: QuoteRoute) {
-  return route.toAmount || route.outputAmount || route.receivedAmount;
-}
-
-function getStatusLabel(statusCode?: number) {
-  switch (statusCode) {
-    case 0:
-      return "Pending";
-    case 1:
-      return "Assigned";
-    case 2:
-      return "Extracted";
-    case 3:
-      return "Fulfilled";
-    case 4:
-      return "Settled";
-    case 5:
-      return "Expired";
-    case 6:
-      return "Cancelled";
-    case 7:
-      return "Refunded";
-    default:
-      return "Unknown";
-  }
+function getEstimatedOutput(route: ZeroExQuote) {
+  return route.buyAmount;
 }
 
 function shortHash(hash: string | null) {
@@ -251,10 +211,6 @@ function shortHash(hash: string | null) {
   }
 
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 export function SwapWidget() {
@@ -276,7 +232,6 @@ export function SwapWidget() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapStatus, setSwapStatus] = useState<string | null>(null);
-  const [statusPayload, setStatusPayload] = useState<StatusResponse | null>(null);
   const [sourceTxHash, setSourceTxHash] = useState<string | null>(null);
 
   useEffect(() => {
@@ -311,7 +266,6 @@ export function SwapWidget() {
     setQuoteLoading(true);
     setQuoteError(null);
     setSwapStatus(null);
-    setStatusPayload(null);
     setSourceTxHash(null);
 
     try {
@@ -321,20 +275,18 @@ export function SwapWidget() {
       ).toString();
 
       const response = await getQuote({
-        userAddress: wallet.address,
-        receiverAddress: wallet.address,
-        originChainId: sourceChainId,
-        destinationChainId,
-        inputAmount: normalizedAmount,
-        inputToken: inputToken.trim(),
-        outputToken: outputToken.trim()
+        buyToken: outputToken.trim(),
+        chainId: sourceChainId,
+        sellAmount: normalizedAmount,
+        sellToken: inputToken.trim(),
+        taker: wallet.address
       });
 
       startTransition(() => {
         setQuote({
           inputAmountBaseUnits: normalizedAmount,
-          route: response.bestRoute,
-          serverReqId: response.serverReqId ?? null
+          requestId: response.requestId,
+          route: response.quote
         });
       });
     } catch (caughtError) {
@@ -342,18 +294,18 @@ export function SwapWidget() {
       setQuoteError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Failed to fetch a quote from Bungee."
+          : "Failed to fetch a quote from 0x."
       );
     } finally {
       setQuoteLoading(false);
     }
   };
 
-  const ensureApprovalIfNeeded = async (approvalData: ApprovalData | null | undefined) => {
-    if (
-      !approvalData?.tokenAddress ||
-      approvalData.tokenAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS
-    ) {
+  const ensureApprovalIfNeeded = async (
+    quoteRoute: ZeroExQuote,
+    fallbackSellAmount: string
+  ) => {
+    if (inputToken.toLowerCase() === NATIVE_TOKEN_ADDRESS) {
       return;
     }
 
@@ -364,18 +316,21 @@ export function SwapWidget() {
     const publicClient = wallet.getPublicClient(sourceChainId);
     const walletClient = wallet.getWalletClient(sourceChainId);
     const spender =
-      approvalData.spenderAddress === "0"
-        ? PERMIT2_ADDRESS
-        : approvalData.spenderAddress;
+      quoteRoute.issues?.allowance?.spender || quoteRoute.allowanceTarget;
+    const approvalAmount = quoteRoute.sellAmount ?? fallbackSellAmount;
+
+    if (!spender || !approvalAmount) {
+      return;
+    }
 
     const currentAllowance = await publicClient.readContract({
-      address: approvalData.tokenAddress as Address,
+      address: inputToken as Address,
       abi: ERC20_ABI,
       functionName: "allowance",
       args: [wallet.address as Address, spender as Address]
     });
 
-    if (currentAllowance >= BigInt(approvalData.amount)) {
+    if (currentAllowance >= BigInt(approvalAmount)) {
       setSwapStatus("Approval already satisfied. Sending swap transaction.");
       return;
     }
@@ -387,9 +342,9 @@ export function SwapWidget() {
       data: encodeFunctionData({
         abi: ERC20_ABI,
         functionName: "approve",
-        args: [spender as Address, BigInt(approvalData.amount)]
+        args: [spender as Address, BigInt(approvalAmount)]
       }),
-      to: approvalData.tokenAddress as Address,
+      to: inputToken as Address,
       value: 0n
     });
 
@@ -398,30 +353,8 @@ export function SwapWidget() {
     setSwapStatus("Approval confirmed. Preparing swap transaction.");
   };
 
-  const pollStatus = async (requestHash: string) => {
-    for (let attempt = 0; attempt < 60; attempt += 1) {
-      const response = await checkStatus(requestHash);
-      setStatusPayload(response);
-      setSwapStatus(`Bridge status: ${getStatusLabel(response.bungeeStatusCode)}`);
-
-      if ([3, 4].includes(response.bungeeStatusCode ?? -1)) {
-        return response;
-      }
-
-      if ([5, 6, 7].includes(response.bungeeStatusCode ?? -1)) {
-        throw new Error(
-          `Bridge request ended with status ${getStatusLabel(response.bungeeStatusCode)}.`
-        );
-      }
-
-      await sleep(5000);
-    }
-
-    return null;
-  };
-
   const handleSwap = async () => {
-    if (!quote?.route.quoteId) {
+    if (!quote?.route.transaction?.to) {
       setSwapStatus("Request a quote before submitting a swap.");
       return;
     }
@@ -433,7 +366,6 @@ export function SwapWidget() {
 
     setSwapLoading(true);
     setSwapStatus(null);
-    setStatusPayload(null);
     setSourceTxHash(null);
 
     try {
@@ -447,10 +379,9 @@ export function SwapWidget() {
         await wallet.switchToChain(sourceChainId);
       }
 
-      setSwapStatus("Building transaction with Bungee.");
-      const buildResult = await buildTx(quote.route.quoteId);
+      setSwapStatus("Checking allowance for 0x execution.");
 
-      await ensureApprovalIfNeeded(buildResult.approvalData);
+      await ensureApprovalIfNeeded(quote.route, quote.inputAmountBaseUnits);
 
       setSwapStatus("Submitting swap transaction.");
 
@@ -460,30 +391,18 @@ export function SwapWidget() {
       const txHash = await walletClient.sendTransaction({
         account: wallet.address as Address,
         chain: currentSourceChain.viemChain,
-        data: (buildResult.txData.data ?? "0x") as Hex,
-        to: buildResult.txData.to as Address,
-        value: buildResult.txData.value ? BigInt(buildResult.txData.value) : 0n
+        data: (quote.route.transaction?.data ?? "0x") as Hex,
+        to: quote.route.transaction.to as Address,
+        value: quote.route.transaction?.value
+          ? BigInt(quote.route.transaction.value)
+          : 0n
       });
 
       setSourceTxHash(txHash);
       setSwapStatus(`Swap submitted: ${shortHash(txHash)}`);
 
       await publicClient.waitForTransactionReceipt({ hash: txHash });
-      setSwapStatus("Source transaction confirmed. Waiting for bridge execution.");
-
-      const finalStatus = await pollStatus(buildResult.requestHash ?? txHash);
-
-      if (finalStatus) {
-        setSwapStatus(
-          finalStatus.destinationData?.txHash
-            ? `Swap complete. Destination tx: ${shortHash(finalStatus.destinationData.txHash)}`
-            : "Swap complete."
-        );
-      } else {
-        setSwapStatus(
-          "Source transaction succeeded. Status polling timed out before a terminal bridge state was returned."
-        );
-      }
+      setSwapStatus("Swap complete.");
     } catch (caughtError) {
       setSwapStatus(
         caughtError instanceof Error
@@ -497,10 +416,22 @@ export function SwapWidget() {
 
   const estimatedOutput = quote ? getEstimatedOutput(quote.route) : undefined;
   const routeLabel = quote ? getRouteLabel(quote.route) : "Request a quote";
-  const feeLabel = quote ? formatUsd(quote.route.totalGasFeesInUsd) : "Unavailable";
-  const durationLabel = quote
-    ? formatDuration(quote.route.serviceTime || quote.route.maxServiceTime)
+  const feeLabel = quote
+    ? [
+        quote.route.fees?.integratorFee?.amount
+          ? `${formatTokenAmount(
+              quote.route.fees.integratorFee.amount,
+              inputTokenMeta?.decimals ?? 18
+            )} ${inputTokenMeta?.symbol ?? "SELL"}`
+          : null,
+        quote.route.totalNetworkFee
+          ? `${formatTokenAmount(quote.route.totalNetworkFee, 18)} ETH network`
+          : null
+      ]
+        .filter(Boolean)
+        .join(" + ") || "Unavailable"
     : "Unavailable";
+  const durationLabel = quote ? "Ethereum confirmation" : "Unavailable";
   const selectedWalletLabel = wallet.selectedWallet?.label ?? "Wallet";
   const selectedWalletInstalled = Boolean(wallet.selectedWallet?.installed);
   const connectButtonLabel = wallet.isConnecting
@@ -518,7 +449,7 @@ export function SwapWidget() {
             <h1>MBTC Swap</h1>
           </div>
           <div className="bw-badges">
-            <span className="bw-badge">{BUNGEE_ENVIRONMENT_LABEL}</span>
+            <span className="bw-badge">{ZEROX_ENVIRONMENT_LABEL}</span>
             <span className="bw-badge bw-badge-accent">
               {wallet.shortAddress ?? "Wallet disconnected"}
             </span>
@@ -527,8 +458,8 @@ export function SwapWidget() {
 
         <p className="bw-description">
           Embed this widget anywhere. It mounts inside a shadow root, supports
-          MetaMask, Coinbase Wallet, and Uniswap Extension, fetches Bungee
-          quotes, and submits the selected route from the source chain.
+          MetaMask, Coinbase Wallet, and Uniswap Extension, fetches 0x quotes,
+          and swaps USDC for MBTC on Ethereum mainnet.
         </p>
 
         <div className="bw-wallet-stack">
@@ -598,6 +529,7 @@ export function SwapWidget() {
             <span>Source chain</span>
             <select
               value={sourceChainId}
+              disabled
               onChange={(event) => {
                 const nextChainId = Number(event.target.value);
                 setSourceChainId(nextChainId);
@@ -605,7 +537,7 @@ export function SwapWidget() {
                 setQuote(null);
               }}
             >
-              {SUPPORTED_CHAINS.map((chain) => (
+              {ETHEREUM_ONLY_CHAINS.map((chain) => (
                 <option key={chain.id} value={chain.id}>
                   {chain.name}
                 </option>
@@ -617,6 +549,7 @@ export function SwapWidget() {
             <span>Destination chain</span>
             <select
               value={destinationChainId}
+              disabled
               onChange={(event) => {
                 const nextChainId = Number(event.target.value);
                 setDestinationChainId(nextChainId);
@@ -624,7 +557,7 @@ export function SwapWidget() {
                 setQuote(null);
               }}
             >
-              {SUPPORTED_CHAINS.map((chain) => (
+              {ETHEREUM_ONLY_CHAINS.map((chain) => (
                 <option key={chain.id} value={chain.id}>
                   {chain.name}
                 </option>
@@ -749,18 +682,12 @@ export function SwapWidget() {
           </div>
         </div>
 
-        {quote?.serverReqId ? (
-          <p className="bw-footnote">Quote request ID: {quote.serverReqId}</p>
+        {quote?.requestId ? (
+          <p className="bw-footnote">0x request ID: {quote.requestId}</p>
         ) : null}
 
         {sourceTxHash ? (
           <p className="bw-footnote">Source tx: {sourceTxHash}</p>
-        ) : null}
-
-        {statusPayload?.destinationData?.txHash ? (
-          <p className="bw-footnote">
-            Destination tx: {statusPayload.destinationData.txHash}
-          </p>
         ) : null}
 
         {quoteError ? <p className="bw-error">{quoteError}</p> : null}

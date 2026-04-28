@@ -18,11 +18,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      VITE_BUNGEE_API_BASE_URL: ${{ vars.VITE_BUNGEE_API_BASE_URL }}
-      VITE_BUNGEE_API_KEY: ${{ secrets.VITE_BUNGEE_API_KEY || vars.VITE_BUNGEE_API_KEY }}
-      VITE_BUNGEE_AFFILIATE: ${{ vars.VITE_BUNGEE_AFFILIATE }}
-      VITE_BUNGEE_FEE_BPS: ${{ vars.VITE_BUNGEE_FEE_BPS }}
-      VITE_BUNGEE_FEE_TAKER_ADDRESS: ${{ vars.VITE_BUNGEE_FEE_TAKER_ADDRESS }}
+      VITE_ZEROX_API_BASE_URL: ${{ vars.VITE_ZEROX_API_BASE_URL }}
+      VITE_ZEROX_API_KEY: ${{ secrets.VITE_ZEROX_API_KEY || vars.VITE_ZEROX_API_KEY }}
+      VITE_ZEROX_FEE_BPS: ${{ vars.VITE_ZEROX_FEE_BPS }}
+      VITE_ZEROX_FEE_RECIPIENT: ${{ vars.VITE_ZEROX_FEE_RECIPIENT }}
+      VITE_ZEROX_FEE_TOKEN: ${{ vars.VITE_ZEROX_FEE_TOKEN }}
 
     steps:
       - name: Checkout

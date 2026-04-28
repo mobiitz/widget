@@ -146,7 +146,7 @@ const previewHtml = `<!doctype html>
         <p class="copy">
           This GitHub Pages front page loads the production <code>widget.js</code>
           bundle exactly as a third-party site would. Use it to confirm the
-          latest deployed build, wallet connection flow, and Bungee quote
+          latest deployed build, wallet connection flow, and 0x quote
           behavior before embedding elsewhere.
         </p>
         <div class="meta">
@@ -169,7 +169,7 @@ const previewHtml = `<!doctype html>
           <h2 style="margin-top: 22px;">Notes</h2>
           <ul>
             <li>This page uses the same deployed artifact your external embeds use.</li>
-            <li>If quotes fail here, check Bungee origin whitelisting for the live host domain.</li>
+            <li>If quotes fail here, check your 0x API key and the live GitHub Pages build variables.</li>
             <li>If the widget updates, refresh after the GitHub Pages deployment completes.</li>
           </ul>
         </aside>
