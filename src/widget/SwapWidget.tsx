@@ -122,12 +122,6 @@ function formatTokenAmount(amount: string | undefined, decimals: number) {
   }
 }
 
-function getRouteLabel(route: ZeroExQuote) {
-  const fills = route.route?.fills ?? [];
-  const uniqueSources = [...new Set(fills.map((fill) => fill.source))];
-  return uniqueSources.length ? uniqueSources.join(" -> ") : "Best available route";
-}
-
 function shortHash(hash: string | null) {
   if (!hash) {
     return null;
@@ -640,22 +634,6 @@ export function SwapWidget() {
   };
 
   const estimatedOutput = quote?.route.buyAmount;
-  const routeLabel = quote ? getRouteLabel(quote.route) : "Request a quote";
-  const feeLabel = quote
-    ? [
-        quote.route.fees?.integratorFee?.amount
-          ? `${formatTokenAmount(
-              quote.route.fees.integratorFee.amount,
-              inputToken.decimals
-            )} ${inputToken.symbol}`
-          : null,
-        quote.route.totalNetworkFee
-          ? `${formatTokenAmount(quote.route.totalNetworkFee, 18)} ETH network`
-          : null
-      ]
-        .filter(Boolean)
-        .join(" + ") || "Unavailable"
-    : "Unavailable";
   const selectedWalletLabel = wallet.selectedWallet?.label ?? "Wallet";
   const selectedWalletInstalled = Boolean(wallet.selectedWallet?.installed);
   const connectButtonLabel = wallet.isConnecting
@@ -667,6 +645,8 @@ export function SwapWidget() {
   return (
     <div className="bw-app">
       <div className="bw-card">
+        <div className="bw-ambient bw-ambient-one" />
+        <div className="bw-ambient bw-ambient-two" />
         <div className="bw-header">
           <div>
             <p className="bw-eyebrow">MBTC Swap</p>
@@ -833,11 +813,7 @@ export function SwapWidget() {
         </div>
 
         <div className="bw-summary">
-          <div className="bw-summary-row">
-            <span>Best route</span>
-            <strong>{routeLabel}</strong>
-          </div>
-          <div className="bw-summary-row">
+          <div className="bw-summary-output">
             <span>Estimated output</span>
             <strong>
               {quote
@@ -845,12 +821,8 @@ export function SwapWidget() {
                     estimatedOutput,
                     outputToken.decimals
                   )} ${outputToken.symbol}`.trim()
-                : "Unavailable"}
+                : "--"}
             </strong>
-          </div>
-          <div className="bw-summary-row">
-            <span>Fees</span>
-            <strong>{feeLabel}</strong>
           </div>
           <div className="bw-summary-row">
             <span>Time estimate</span>
