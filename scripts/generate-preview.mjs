@@ -204,13 +204,40 @@ const previewHtml = `<!doctype html>
             "</div>";
         }
 
+        let capturedRuntimeError = null;
+
+        window.addEventListener("error", function (event) {
+          capturedRuntimeError =
+            event && event.error && event.error.stack
+              ? event.error.stack
+              : event && event.message
+                ? event.message
+                : "Unknown script error.";
+        });
+
+        window.addEventListener("unhandledrejection", function (event) {
+          const reason = event && event.reason;
+          capturedRuntimeError =
+            reason && reason.stack
+              ? reason.stack
+              : reason instanceof Error
+                ? reason.message
+                : String(reason);
+        });
+
         const script = document.createElement("script");
         script.src = "./widget.js";
 
         script.onload = function () {
           try {
             if (!window.BungeeWidget || typeof window.BungeeWidget.init !== "function") {
-              showError("The deployed bundle loaded, but it did not expose window.BungeeWidget.init.");
+              showError(
+                capturedRuntimeError
+                  ? "Runtime error while executing widget.js:<br><br><code>" +
+                    String(capturedRuntimeError).replace(/</g, "&lt;") +
+                    "</code>"
+                  : "The deployed bundle loaded, but it did not expose window.BungeeWidget.init."
+              );
               return;
             }
 
