@@ -78,10 +78,10 @@
 
 .bw-description {
   color: #a7bad9;
-  font-size: 0.96rem;
-  line-height: 1.55;
-  margin: 0 0 18px;
-  max-width: 38ch;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 0 0 16px;
+  max-width: 34ch;
 }
 
 .bw-badges {
@@ -175,8 +175,8 @@
 .bw-wallet-meta {
   color: #8aa2c7;
   display: grid;
-  font-size: 0.82rem;
-  gap: 4px;
+  font-size: 0.8rem;
+  gap: 3px;
 }
 
 .bw-grid {

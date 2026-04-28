@@ -39,7 +39,6 @@ type PublicClientGetter = ReturnType<typeof useWallet>["getPublicClient"];
 type TokenPickerProps = {
   chainId: number;
   getPublicClient: PublicClientGetter;
-  helperText: string;
   label: string;
   onSelect: (token: TokenOption) => void;
   options: TokenOption[];
@@ -216,7 +215,6 @@ function TokenIcon({
 function TokenPicker({
   chainId,
   getPublicClient,
-  helperText,
   label,
   onSelect,
   options,
@@ -392,9 +390,6 @@ function TokenPicker({
         </div>
       ) : null}
 
-      <small>
-        {helperText}
-      </small>
     </div>
   );
 }
@@ -686,11 +681,7 @@ export function SwapWidget() {
         </div>
 
         <p className="bw-description">
-          Swap across a much broader Ethereum token set with{" "}
-          <code>USDC -&gt; MBTC</code> as the default pair. The picker shows token
-          icons, supports MetaMask, Coinbase Wallet, and Uniswap Extension, and
-          can import custom ERC-20 addresses for tokens outside the bundled
-          catalog.
+          Swap Ethereum tokens with <code>USDC -&gt; MBTC</code> preselected.
         </p>
 
         <div className="bw-wallet-stack">
@@ -733,19 +724,16 @@ export function SwapWidget() {
             </button>
 
             <div className="bw-wallet-meta">
-              <span>Selected wallet: {selectedWalletLabel}</span>
               <span>
                 {wallet.chainId
-                  ? `Current network: ${
+                  ? `Network: ${
                       findSupportedChain(wallet.chainId)?.name ?? `Chain ${wallet.chainId}`
                     }`
-                  : "No network selected"}
+                  : "Network: not connected"}
               </span>
-              <span>Current swap mode: same-chain Ethereum via 0x</span>
               {!wallet.hasProvider ? (
                 <span>
-                  No supported injected wallet detected. Install MetaMask,
-                  Coinbase Wallet, or Uniswap Extension.
+                  Install MetaMask, Coinbase Wallet, or Uniswap Extension to connect.
                 </span>
               ) : null}
               {wallet.hasProvider && !selectedWalletInstalled ? (
@@ -766,7 +754,6 @@ export function SwapWidget() {
                 </option>
               ))}
             </select>
-            <small>0x Swap API is currently configured here for Ethereum mainnet.</small>
           </label>
 
           <label className="bw-field">
@@ -778,13 +765,11 @@ export function SwapWidget() {
                 </option>
               ))}
             </select>
-            <small>Source and destination remain on the same EVM chain in this mode.</small>
           </label>
 
           <TokenPicker
             chainId={sourceChainId}
             getPublicClient={wallet.getPublicClient}
-            helperText="Shows your pinned default plus a much larger Ethereum catalog. Search or scroll through up to the top 100 commonly listed tokens here, or paste any ERC-20 address."
             label="Input token"
             onSelect={(token) => {
               setInputToken(token);
@@ -797,7 +782,6 @@ export function SwapWidget() {
           <TokenPicker
             chainId={destinationChainId}
             getPublicClient={wallet.getPublicClient}
-            helperText="MBTC uses your bundled logo. Search across the expanded Ethereum token catalog or paste any contract to import a custom destination token."
             label="Output token"
             onSelect={(token) => {
               setOutputToken(token);
