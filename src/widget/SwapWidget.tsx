@@ -39,6 +39,7 @@ type PublicClientGetter = ReturnType<typeof useWallet>["getPublicClient"];
 type TokenPickerProps = {
   chainId: number;
   getPublicClient: PublicClientGetter;
+  helperText: string;
   label: string;
   onSelect: (token: TokenOption) => void;
   options: TokenOption[];
@@ -58,6 +59,8 @@ const ETHEREUM_ONLY_CHAINS = SUPPORTED_CHAINS.filter((chain) => chain.id === 1);
 const CUSTOM_TOKEN_CACHE = new Map<string, TokenOption>();
 const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
+const REMOTE_ETHEREUM_TOKEN_LIST_URL =
+  "https://raw.githubusercontent.com/viaprotocol/tokenlists/main/tokenlists/ethereum.json";
 
 function getDefaultToken(address: string) {
   return (
@@ -74,6 +77,16 @@ function getTokenIconUrl(address: string) {
 
   return `https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/ethereum/assets/${getAddress(address)}/logo.png`;
 }
+
+type RemoteTokenListEntry = {
+  address: string;
+  chainId: number;
+  decimals: number;
+  listedIn?: string[];
+  logoURI?: string;
+  name: string;
+  symbol: string;
+};
 
 function mergeTokenOptions(...lists: TokenOption[][]) {
   const seen = new Map<string, TokenOption>();
@@ -173,9 +186,11 @@ async function importTokenByAddress(
 
 function TokenIcon({
   address,
+  logoURI,
   symbol
 }: {
   address: string;
+  logoURI?: string;
   symbol: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
@@ -193,7 +208,7 @@ function TokenIcon({
       onError={() => {
         setImageFailed(true);
       }}
-      src={getTokenIconUrl(address)}
+      src={logoURI || getTokenIconUrl(address)}
     />
   );
 }
@@ -201,6 +216,7 @@ function TokenIcon({
 function TokenPicker({
   chainId,
   getPublicClient,
+  helperText,
   label,
   onSelect,
   options,
@@ -243,7 +259,7 @@ function TokenPicker({
         )
       : options;
 
-    return candidateOptions.slice(0, 16);
+    return candidateOptions.slice(0, 100);
   }, [deferredQuery, options]);
 
   const customImportAddress = useMemo(() => {
@@ -296,6 +312,7 @@ function TokenPicker({
         <span className="bw-picker-value">
           <TokenIcon
             address={selectedToken.address}
+            logoURI={selectedToken.logoURI}
             symbol={selectedToken.symbol}
           />
           <span className="bw-picker-copy">
@@ -337,7 +354,11 @@ function TokenPicker({
                 type="button"
               >
                 <span className="bw-token-option-main">
-                  <TokenIcon address={token.address} symbol={token.symbol} />
+                  <TokenIcon
+                    address={token.address}
+                    logoURI={token.logoURI}
+                    symbol={token.symbol}
+                  />
                   <span className="bw-token-option-copy">
                     <strong>{token.symbol}</strong>
                     <small>{token.name}</small>
@@ -372,8 +393,7 @@ function TokenPicker({
       ) : null}
 
       <small>
-        Icons render in the picker. Search the bundled Ethereum list or paste a
-        token contract to import a custom ERC-20.
+        {helperText}
       </small>
     </div>
   );
@@ -396,10 +416,11 @@ export function SwapWidget() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapStatus, setSwapStatus] = useState<string | null>(null);
   const [sourceTxHash, setSourceTxHash] = useState<string | null>(null);
+  const [catalogTokens, setCatalogTokens] = useState<TokenOption[]>([]);
 
   const tokenOptions = useMemo(
-    () => mergeTokenOptions(ETHEREUM_TOKENS, [inputToken, outputToken]),
-    [inputToken, outputToken]
+    () => mergeTokenOptions(ETHEREUM_TOKENS, catalogTokens, [inputToken, outputToken]),
+    [catalogTokens, inputToken, outputToken]
   );
 
   useEffect(() => {
@@ -410,6 +431,63 @@ export function SwapWidget() {
       setDestinationChainId(1);
     }
   }, [destinationChainId, sourceChainId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadRemoteTokenCatalog = async () => {
+      try {
+        const response = await fetch(REMOTE_ETHEREUM_TOKEN_LIST_URL, {
+          headers: {
+            Accept: "application/json"
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Token catalog request failed with status ${response.status}.`);
+        }
+
+        const tokens = (await response.json()) as RemoteTokenListEntry[];
+        const rankedTokens = tokens
+          .filter((token) => token.chainId === 1 && isAddress(token.address))
+          .sort((leftToken, rightToken) => {
+            const sourceCountDelta =
+              (rightToken.listedIn?.length ?? 0) - (leftToken.listedIn?.length ?? 0);
+
+            if (sourceCountDelta !== 0) {
+              return sourceCountDelta;
+            }
+
+            return leftToken.symbol.localeCompare(rightToken.symbol);
+          })
+          .map((token) => ({
+            address: getAddress(token.address),
+            decimals: token.decimals,
+            logoURI: token.logoURI,
+            name: token.name,
+            symbol: token.symbol
+          }));
+
+        if (!isActive) {
+          return;
+        }
+
+        setCatalogTokens(rankedTokens);
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        setCatalogTokens([]);
+      }
+    };
+
+    void loadRemoteTokenCatalog();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const handleGetQuote = async () => {
     if (!wallet.address) {
@@ -706,6 +784,7 @@ export function SwapWidget() {
           <TokenPicker
             chainId={sourceChainId}
             getPublicClient={wallet.getPublicClient}
+            helperText="Shows your pinned default plus a much larger Ethereum catalog. Search or scroll through up to the top 100 commonly listed tokens here, or paste any ERC-20 address."
             label="Input token"
             onSelect={(token) => {
               setInputToken(token);
@@ -718,6 +797,7 @@ export function SwapWidget() {
           <TokenPicker
             chainId={destinationChainId}
             getPublicClient={wallet.getPublicClient}
+            helperText="MBTC uses your bundled logo. Search across the expanded Ethereum token catalog or paste any contract to import a custom destination token."
             label="Output token"
             onSelect={(token) => {
               setOutputToken(token);
