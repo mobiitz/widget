@@ -192,7 +192,6 @@ const previewHtml = `<!doctype html>
       </section>
     </main>
 
-    <script src="./widget.js"></script>
     <script>
       (function () {
         const target = document.getElementById("preview-widget");
@@ -205,30 +204,41 @@ const previewHtml = `<!doctype html>
             "</div>";
         }
 
-        try {
-          if (!window.BungeeWidget || typeof window.BungeeWidget.init !== "function") {
-            showError("The deployed bundle did not expose window.BungeeWidget.init.");
-            return;
-          }
+        const script = document.createElement("script");
+        script.src = "./widget.js";
 
-          window.BungeeWidget.init({ targetId: "preview-widget" });
-
-          window.setTimeout(function () {
-            const mounted =
-              target &&
-              target.shadowRoot &&
-              target.shadowRoot.childNodes &&
-              target.shadowRoot.childNodes.length > 0;
-
-            if (!mounted) {
-              showError(
-                "The bundle loaded, but no widget markup was mounted. Open the browser console for the runtime error."
-              );
+        script.onload = function () {
+          try {
+            if (!window.BungeeWidget || typeof window.BungeeWidget.init !== "function") {
+              showError("The deployed bundle loaded, but it did not expose window.BungeeWidget.init.");
+              return;
             }
-          }, 250);
-        } catch (error) {
-          showError(error instanceof Error ? error.message : String(error));
-        }
+
+            window.BungeeWidget.init({ targetId: "preview-widget" });
+
+            window.setTimeout(function () {
+              const mounted =
+                target &&
+                target.shadowRoot &&
+                target.shadowRoot.childNodes &&
+                target.shadowRoot.childNodes.length > 0;
+
+              if (!mounted) {
+                showError(
+                  "The bundle loaded, but no widget markup was mounted. Open the browser console for the runtime error."
+                );
+              }
+            }, 250);
+          } catch (error) {
+            showError(error instanceof Error ? error.message : String(error));
+          }
+        };
+
+        script.onerror = function () {
+          showError("The preview page could not load ./widget.js.");
+        };
+
+        document.body.appendChild(script);
       })();
     </script>
   </body>
