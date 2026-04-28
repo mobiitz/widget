@@ -80,11 +80,15 @@ export type ZeroExQuote = {
 type QueryValue = string | number | boolean | null | undefined;
 
 const apiKey = import.meta.env.VITE_ZEROX_API_KEY?.trim();
-const baseUrl = import.meta.env.VITE_ZEROX_API_BASE_URL?.trim() || "https://api.0x.org";
+const proxyUrl = import.meta.env.VITE_ZEROX_PROXY_URL?.trim();
+const directBaseUrl =
+  import.meta.env.VITE_ZEROX_API_BASE_URL?.trim() || "https://api.0x.org";
+const baseUrl = (proxyUrl || directBaseUrl).replace(/\/$/, "");
 const feeRecipient = import.meta.env.VITE_ZEROX_FEE_RECIPIENT?.trim();
 const feeToken = import.meta.env.VITE_ZEROX_FEE_TOKEN?.trim();
+const isProxyMode = Boolean(proxyUrl);
 
-export const ZEROX_ENVIRONMENT_LABEL = "0x API";
+export const ZEROX_ENVIRONMENT_LABEL = isProxyMode ? "0x via Proxy" : "0x API";
 
 function normalizeFeeBps(value: string | undefined) {
   if (!value) {
@@ -115,7 +119,13 @@ export const ZEROX_FEE_CONFIGURATION =
       }
     : null;
 
-function buildHeaders() {
+function buildHeaders(): Record<string, string> {
+  if (isProxyMode) {
+    return {
+      Accept: "application/json"
+    };
+  }
+
   if (!apiKey) {
     throw new Error("0x API key is missing. Set VITE_ZEROX_API_KEY before building.");
   }
@@ -124,7 +134,7 @@ function buildHeaders() {
     Accept: "application/json",
     "0x-api-key": apiKey,
     "0x-version": "v2"
-  } satisfies HeadersInit;
+  };
 }
 
 function buildQuery(params: Record<string, QueryValue>) {
@@ -184,7 +194,9 @@ async function request<T>(path: string, params: Record<string, QueryValue>) {
 }
 
 export async function getQuote(params: QuoteParams) {
-  const response = await request<ZeroExQuote>("/swap/allowance-holder/quote", {
+  const response = await request<ZeroExQuote>(
+    isProxyMode ? "/api/quote" : "/swap/allowance-holder/quote",
+    {
     ...params,
     swapFeeBps: params.swapFeeBps ?? ZEROX_FEE_CONFIGURATION?.feeBps,
     swapFeeRecipient:
@@ -193,7 +205,8 @@ export async function getQuote(params: QuoteParams) {
       params.swapFeeToken ??
       ZEROX_FEE_CONFIGURATION?.feeToken ??
       params.sellToken
-  });
+    }
+  );
 
   if (!response.result.liquidityAvailable) {
     throw new Error(
