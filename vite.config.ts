@@ -4,6 +4,9 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   base: "/widget/",
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production")
+  },
   plugins: [react()],
   build: {
     cssCodeSplit: false,
