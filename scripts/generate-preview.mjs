@@ -182,12 +182,6 @@ const previewHtml = `<!doctype html>
 &lt;script&gt;
   BungeeWidget.init({ targetId: "my-swap-widget" });
 &lt;/script&gt;</code></pre>
-          <h2 style="margin-top: 22px;">Notes</h2>
-          <ul>
-            <li>This page uses the same deployed artifact your external embeds use.</li>
-            <li>If quotes fail here, check your 0x API key and the live GitHub Pages build variables.</li>
-            <li>If the widget updates, refresh after the GitHub Pages deployment completes.</li>
-          </ul>
         </aside>
       </section>
     </main>
