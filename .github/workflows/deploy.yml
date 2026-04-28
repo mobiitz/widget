@@ -18,6 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      VITE_ZEROX_PROXY_URL: ${{ vars.VITE_ZEROX_PROXY_URL }}
       VITE_ZEROX_API_BASE_URL: ${{ vars.VITE_ZEROX_API_BASE_URL }}
       VITE_ZEROX_API_KEY: ${{ secrets.VITE_ZEROX_API_KEY || vars.VITE_ZEROX_API_KEY }}
       VITE_ZEROX_FEE_BPS: ${{ vars.VITE_ZEROX_FEE_BPS }}
