@@ -131,6 +131,22 @@ const previewHtml = `<!doctype html>
         min-height: 200px;
       }
 
+      .preview-error {
+        border: 1px solid rgba(228, 104, 133, 0.28);
+        border-radius: 20px;
+        background: rgba(98, 22, 39, 0.24);
+        color: #ffd8e2;
+        padding: 18px;
+        font-size: 0.92rem;
+        line-height: 1.6;
+      }
+
+      .preview-error strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #fff4f7;
+      }
+
       @media (max-width: 900px) {
         .layout {
           grid-template-columns: 1fr;
@@ -178,7 +194,42 @@ const previewHtml = `<!doctype html>
 
     <script src="./widget.js"></script>
     <script>
-      window.BungeeWidget.init({ targetId: "preview-widget" });
+      (function () {
+        const target = document.getElementById("preview-widget");
+
+        function showError(message) {
+          target.innerHTML =
+            '<div class="preview-error">' +
+            '<strong>Widget preview failed to mount.</strong>' +
+            message +
+            "</div>";
+        }
+
+        try {
+          if (!window.BungeeWidget || typeof window.BungeeWidget.init !== "function") {
+            showError("The deployed bundle did not expose window.BungeeWidget.init.");
+            return;
+          }
+
+          window.BungeeWidget.init({ targetId: "preview-widget" });
+
+          window.setTimeout(function () {
+            const mounted =
+              target &&
+              target.shadowRoot &&
+              target.shadowRoot.childNodes &&
+              target.shadowRoot.childNodes.length > 0;
+
+            if (!mounted) {
+              showError(
+                "The bundle loaded, but no widget markup was mounted. Open the browser console for the runtime error."
+              );
+            }
+          }, 250);
+        } catch (error) {
+          showError(error instanceof Error ? error.message : String(error));
+        }
+      })();
     </script>
   </body>
 </html>
