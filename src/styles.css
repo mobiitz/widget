@@ -32,7 +32,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   margin: 0 auto;
   max-width: 460px;
-  overflow: hidden;
+  overflow: visible;
   padding: 24px;
   position: relative;
 }
@@ -189,6 +189,7 @@
 .bw-field {
   display: grid;
   gap: 8px;
+  position: relative;
 }
 
 .bw-field span {
@@ -278,9 +279,12 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   display: grid;
   gap: 10px;
-  margin-top: 8px;
+  left: 0;
   padding: 12px;
-  position: relative;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
 }
 
 .bw-token-search {
