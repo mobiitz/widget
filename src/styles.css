@@ -550,6 +550,63 @@
   text-align: right;
 }
 
+.bw-progress {
+  display: grid;
+  gap: 10px;
+}
+
+.bw-progress-heading,
+.bw-progress-meta {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.bw-progress-heading span,
+.bw-progress-meta span {
+  color: #8da5c7;
+  font-size: 0.84rem;
+}
+
+.bw-progress-heading strong {
+  color: #f5fbff;
+  font-size: 0.88rem;
+}
+
+.bw-progress-meta strong {
+  color: #f5fbff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  max-width: 65%;
+  text-align: right;
+}
+
+.bw-progress-track {
+  background: #122034;
+  border: 1px solid #1f314b;
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.bw-progress-fill {
+  background: linear-gradient(90deg, #61dcff 0%, #5f8dff 100%);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width 220ms ease;
+}
+
+.bw-progress-track-error {
+  border-color: #6c2738;
+}
+
+.bw-progress-fill-error {
+  background: linear-gradient(90deg, #ff6b8e 0%, #d54c67 100%);
+}
+
 .bw-footnote {
   color: #87a5cf;
   font-size: 0.74rem;
@@ -620,6 +677,17 @@
   }
 
   .bw-summary-row strong {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .bw-progress-heading,
+  .bw-progress-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bw-progress-meta strong {
     max-width: 100%;
     text-align: left;
   }

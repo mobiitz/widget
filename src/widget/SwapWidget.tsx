@@ -16,11 +16,7 @@ import {
   parseUnits
 } from "viem";
 import { ETHEREUM_TOKENS, type TokenOption } from "../data/ethereumTokens";
-import {
-  getQuote,
-  ZEROX_ENVIRONMENT_LABEL,
-  type ZeroExQuote
-} from "../services/zerox";
+import { getQuote, type ZeroExQuote } from "../services/zerox";
 import {
   NATIVE_TOKEN_ADDRESS,
   SUPPORTED_CHAINS,
@@ -33,6 +29,19 @@ type QuoteState = {
   requestId: string | null;
   route: ZeroExQuote;
 };
+
+type SwapStage =
+  | "idle"
+  | "preparing"
+  | "switching"
+  | "checkingAllowance"
+  | "awaitingApproval"
+  | "approvalPending"
+  | "approvalConfirmed"
+  | "awaitingSwap"
+  | "swapPending"
+  | "complete"
+  | "error";
 
 type TokenPickerProps = {
   label: string;
@@ -62,6 +71,32 @@ const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
 const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
   (token) => token.address.toLowerCase() === DEFAULT_DESTINATION_TOKEN.toLowerCase()
 );
+const SWAP_PROGRESS: Record<SwapStage, number> = {
+  idle: 0,
+  preparing: 10,
+  switching: 18,
+  checkingAllowance: 28,
+  awaitingApproval: 42,
+  approvalPending: 56,
+  approvalConfirmed: 68,
+  awaitingSwap: 78,
+  swapPending: 90,
+  complete: 100,
+  error: 100
+};
+const SWAP_STAGE_LABEL: Record<SwapStage, string> = {
+  idle: "Waiting to start",
+  preparing: "Preparing swap",
+  switching: "Switching network",
+  checkingAllowance: "Checking allowance",
+  awaitingApproval: "Waiting for approval confirmation",
+  approvalPending: "Approval pending onchain",
+  approvalConfirmed: "Approval confirmed",
+  awaitingSwap: "Waiting for swap confirmation",
+  swapPending: "Swap pending onchain",
+  complete: "Swap complete",
+  error: "Swap failed"
+};
 
 function getDefaultToken(address: string) {
   return (
@@ -277,6 +312,7 @@ export function SwapWidget() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [swapLoading, setSwapLoading] = useState(false);
+  const [swapStage, setSwapStage] = useState<SwapStage>("idle");
   const [swapStatus, setSwapStatus] = useState<string | null>(null);
   const [sourceTxHash, setSourceTxHash] = useState<string | null>(null);
   const [quoteLastUpdatedAt, setQuoteLastUpdatedAt] = useState<number | null>(null);
@@ -371,6 +407,7 @@ export function SwapWidget() {
     if (reason === "manual") {
       setQuoteLoading(true);
       setQuoteRefreshLabel(null);
+      setSwapStage("idle");
       setSwapStatus(null);
       setSourceTxHash(null);
     } else {
@@ -474,11 +511,13 @@ export function SwapWidget() {
           });
 
     if (currentAllowance >= BigInt(approvalAmount)) {
+      setSwapStage("approvalConfirmed");
       setSwapStatus("Approval already satisfied. Sending swap transaction.");
       return;
     }
 
     flushSync(() => {
+      setSwapStage("awaitingApproval");
       setSwapStatus("Approval required. Confirm the approval in your wallet.");
     });
     await nextFrame();
@@ -493,10 +532,12 @@ export function SwapWidget() {
       value: 0n
     });
 
+    setSwapStage("approvalPending");
     setSwapStatus(`Approval submitted: ${shortHash(approvalHash)}`);
     await wallet.getPublicClient(sourceChainId).waitForTransactionReceipt({
       hash: approvalHash
     });
+    setSwapStage("approvalConfirmed");
     setSwapStatus("Approval confirmed. Preparing swap transaction.");
   };
 
@@ -513,6 +554,7 @@ export function SwapWidget() {
 
     flushSync(() => {
       setSwapLoading(true);
+      setSwapStage("preparing");
       setSwapStatus("Preparing swap...");
       setSourceTxHash(null);
     });
@@ -532,13 +574,16 @@ export function SwapWidget() {
       }
 
       if (wallet.chainId !== sourceChainId) {
+        setSwapStage("switching");
         setSwapStatus(`Switching wallet to ${currentSourceChain.name}.`);
         await wallet.switchToChain(sourceChainId);
       }
 
+      setSwapStage("checkingAllowance");
       setSwapStatus("Checking allowance for 0x execution.");
       await ensureApprovalIfNeeded(quote.route, quote.inputAmountBaseUnits);
       flushSync(() => {
+        setSwapStage("awaitingSwap");
         setSwapStatus("Open your wallet to submit the swap.");
       });
       await nextFrame();
@@ -559,11 +604,14 @@ export function SwapWidget() {
           : 0n
       });
 
+      setSwapStage("swapPending");
       setSourceTxHash(txHash);
       setSwapStatus(`Swap submitted: ${shortHash(txHash)}`);
       await publicClient.waitForTransactionReceipt({ hash: txHash });
+      setSwapStage("complete");
       setSwapStatus("Swap complete.");
     } catch (caughtError) {
+      setSwapStage("error");
       setSwapStatus(
         caughtError instanceof Error
           ? caughtError.message
@@ -575,6 +623,7 @@ export function SwapWidget() {
   };
 
   const estimatedOutput = quote?.route.buyAmount;
+  const progressValue = SWAP_PROGRESS[swapStage];
   const selectedWalletLabel = wallet.selectedWallet?.label ?? "Wallet";
   const selectedWalletInstalled = Boolean(wallet.selectedWallet?.installed);
   const connectButtonLabel = wallet.isConnecting
@@ -591,7 +640,6 @@ export function SwapWidget() {
             <h1>Buy $MBTC Here</h1>
           </div>
           <div className="bw-badges">
-            <span className="bw-badge">{ZEROX_ENVIRONMENT_LABEL}</span>
             <span className="bw-badge bw-badge-accent">
               {wallet.shortAddress ?? "Wallet disconnected"}
             </span>
@@ -741,9 +789,32 @@ export function SwapWidget() {
             <span>Time estimate</span>
             <strong>{quote ? "Ethereum confirmation" : "Unavailable"}</strong>
           </div>
-          <div className="bw-summary-row">
-            <span>Tx status</span>
-            <strong>{swapStatus ?? "Idle"}</strong>
+          <div className="bw-progress">
+            <div className="bw-progress-heading">
+              <span>Swap progress</span>
+              <strong>{progressValue}%</strong>
+            </div>
+            <div
+              aria-label={`Swap progress ${progressValue}%`}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={progressValue}
+              className={`bw-progress-track${
+                swapStage === "error" ? " bw-progress-track-error" : ""
+              }`}
+              role="progressbar"
+            >
+              <span
+                className={`bw-progress-fill${
+                  swapStage === "error" ? " bw-progress-fill-error" : ""
+                }`}
+                style={{ width: `${progressValue}%` }}
+              />
+            </div>
+            <div className="bw-progress-meta">
+              <span>{SWAP_STAGE_LABEL[swapStage]}</span>
+              <strong>{swapStatus ?? "Get a quote, then swap."}</strong>
+            </div>
           </div>
         </div>
 
