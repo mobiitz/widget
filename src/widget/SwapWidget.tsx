@@ -704,11 +704,11 @@ export function SwapWidget() {
   const progressValue = SWAP_PROGRESS[swapStage];
   const selectedWalletLabel = wallet.selectedWallet?.label ?? "Wallet";
   const selectedWalletInstalled = Boolean(wallet.selectedWallet?.installed);
-  const connectButtonLabel = wallet.isConnecting
+  const walletActionLabel = wallet.isConnecting
     ? `Connecting ${selectedWalletLabel}...`
-    : wallet.shortAddress
-      ? `Connected: ${selectedWalletLabel}`
-      : `Connect ${selectedWalletLabel}`;
+    : wallet.isConnected
+      ? "Disconnect Wallet"
+      : "Connect Wallet";
 
   return (
     <div className="bw-app">
@@ -725,31 +725,40 @@ export function SwapWidget() {
         </div>
 
         <div className="bw-wallet-stack">
-          <div className="bw-wallet-picker">
-            {wallet.wallets.map((walletOption) => (
-              <button
-                key={walletOption.id}
-                className={`bw-wallet-option${
-                  walletOption.id === wallet.selectedWalletId
-                    ? " bw-wallet-option-active"
-                    : ""
-                }${walletOption.installed ? "" : " bw-wallet-option-disabled"}`}
-                onClick={() => {
-                  wallet.selectWallet(walletOption.id);
+          <div className="bw-wallet-controls">
+            <label className="bw-wallet-select">
+              <span>Wallet</span>
+              <select
+                onChange={(event) => {
+                  wallet.selectWallet(event.target.value as typeof wallet.selectedWalletId);
                 }}
-                type="button"
+                value={wallet.selectedWalletId}
               >
-                <span>{walletOption.label}</span>
-                <small>{walletOption.installed ? "Detected" : "Unavailable"}</small>
-              </button>
-            ))}
-          </div>
+                {wallet.wallets.map((walletOption) => (
+                  <option key={walletOption.id} value={walletOption.id}>
+                    {walletOption.label}
+                    {walletOption.installed ? "" : " (Unavailable)"}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <div className="bw-wallet-row">
             <button
               className="bw-button bw-button-secondary"
-              disabled={!selectedWalletInstalled || wallet.isConnecting || swapLoading}
+              disabled={
+                wallet.isConnected
+                  ? wallet.isConnecting || swapLoading
+                  : !selectedWalletInstalled || wallet.isConnecting || swapLoading
+              }
               onClick={() => {
+                if (wallet.isConnected) {
+                  wallet.disconnect();
+                  setSwapStage("idle");
+                  setSwapStatus(null);
+                  setSourceTxHash(null);
+                  return;
+                }
+
                 void wallet.connect().catch((error: unknown) => {
                   setSwapStatus(
                     error instanceof Error
@@ -760,27 +769,32 @@ export function SwapWidget() {
               }}
               type="button"
             >
-              {connectButtonLabel}
+              {walletActionLabel}
             </button>
+          </div>
 
-            <div className="bw-wallet-meta">
+          <div className="bw-wallet-meta">
+            <span>
+              {wallet.isConnected
+                ? `Connected: ${wallet.shortAddress}`
+                : "Wallet not connected"}
+            </span>
+            <span>
+              {wallet.chainId
+                ? `Network: ${
+                    findSupportedChain(wallet.chainId)?.name ?? `Chain ${wallet.chainId}`
+                  }`
+                : "Network: not connected"}
+            </span>
+            {!wallet.hasProvider ? (
               <span>
-                {wallet.chainId
-                  ? `Network: ${
-                      findSupportedChain(wallet.chainId)?.name ?? `Chain ${wallet.chainId}`
-                    }`
-                  : "Network: not connected"}
+                Install MetaMask, Coinbase Wallet, or Uniswap Extension to connect.
               </span>
-              {!wallet.hasProvider ? (
-                <span>
-                  Install MetaMask, Coinbase Wallet, or Uniswap Extension to connect.
-                </span>
-              ) : null}
-              {wallet.hasProvider && !selectedWalletInstalled ? (
-                <span>{selectedWalletLabel} is not installed in this browser.</span>
-              ) : null}
-              {wallet.error ? <span>{wallet.error}</span> : null}
-            </div>
+            ) : null}
+            {wallet.hasProvider && !selectedWalletInstalled && !wallet.isConnected ? (
+              <span>{selectedWalletLabel} is not installed in this browser.</span>
+            ) : null}
+            {wallet.error ? <span>{wallet.error}</span> : null}
           </div>
         </div>
 

@@ -180,6 +180,7 @@ export function useWallet() {
   const [address, setAddress] = useState<string | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnected, setIsDisconnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -295,7 +296,9 @@ export function useWallet() {
         }
 
         const nextAddress = Array.isArray(accounts) ? accounts[0] : null;
-        setAddress(typeof nextAddress === "string" ? nextAddress : null);
+        setAddress(
+          isDisconnected ? null : typeof nextAddress === "string" ? nextAddress : null
+        );
         setChainId(normalizeChainId(currentChainId));
         setError(null);
       } catch (caughtError) {
@@ -313,7 +316,12 @@ export function useWallet() {
 
     const handleAccountsChanged = (accounts: unknown) => {
       const nextAddress = Array.isArray(accounts) ? accounts[0] : null;
-      setAddress(typeof nextAddress === "string" ? nextAddress : null);
+      if (typeof nextAddress === "string") {
+        setIsDisconnected(false);
+      }
+      setAddress(
+        isDisconnected ? null : typeof nextAddress === "string" ? nextAddress : null
+      );
     };
 
     const handleChainChanged = (nextChainId: unknown) => {
@@ -329,7 +337,7 @@ export function useWallet() {
       provider.removeListener?.("accountsChanged", handleAccountsChanged);
       provider.removeListener?.("chainChanged", handleChainChanged);
     };
-  }, [selectedWallet]);
+  }, [isDisconnected, selectedWallet]);
 
   const connect = async (walletId = selectedWalletId) => {
     const wallet = wallets.find((candidate) => candidate.id === walletId) ?? null;
@@ -339,6 +347,7 @@ export function useWallet() {
 
     setSelectedWalletId(walletId);
     setIsConnecting(true);
+    setIsDisconnected(false);
     setError(null);
 
     try {
@@ -362,6 +371,12 @@ export function useWallet() {
     } finally {
       setIsConnecting(false);
     }
+  };
+
+  const disconnect = () => {
+    setIsDisconnected(true);
+    setAddress(null);
+    setError(null);
   };
 
   const switchToChain = async (targetChainId: number) => {
@@ -493,12 +508,15 @@ export function useWallet() {
     chainId,
     error,
     hasProvider: wallets.some((wallet) => wallet.installed),
+    isDisconnected,
     isConnecting,
+    isConnected: Boolean(address) && !isDisconnected,
     selectedWallet,
     selectedWalletId,
     shortAddress: shortenAddress(address),
     wallets,
     connect,
+    disconnect,
     getPublicClient,
     getWalletClient,
     selectWallet: setSelectedWalletId,
