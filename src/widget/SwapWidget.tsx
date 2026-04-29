@@ -861,7 +861,7 @@ export function SwapWidget() {
             }}
             type="button"
           >
-            {swapLoading ? "Swapping..." : "Step 2. Swap"}
+            {swapLoading ? "Swapping..." : "Step 2. Buy"}
           </button>
         </div>
 

@@ -355,13 +355,65 @@ export function useWallet() {
       const accounts = await wallet.provider.request({
         method: "eth_requestAccounts"
       });
-      const currentChainId = await wallet.provider.request({
-        method: "eth_chainId"
-      });
       const nextAddress = Array.isArray(accounts) ? accounts[0] : null;
+      const normalizedAddress =
+        typeof nextAddress === "string" ? nextAddress : null;
 
-      setAddress(typeof nextAddress === "string" ? nextAddress : null);
-      setChainId(normalizeChainId(currentChainId));
+      let currentChainId = normalizeChainId(
+        await wallet.provider.request({
+          method: "eth_chainId"
+        })
+      );
+
+      if (currentChainId !== 1) {
+        const ethereumChain = findSupportedChain(1);
+
+        if (!ethereumChain) {
+          throw new Error("Ethereum network configuration is unavailable.");
+        }
+
+        try {
+          await wallet.provider.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0x1" }]
+          });
+          currentChainId = 1;
+        } catch (caughtError) {
+          const errorCode =
+            typeof caughtError === "object" &&
+            caughtError !== null &&
+            "code" in caughtError
+              ? Number((caughtError as { code?: unknown }).code)
+              : undefined;
+
+          if (errorCode === 4902) {
+            await wallet.provider.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: "0x1",
+                  chainName: ethereumChain.name,
+                  nativeCurrency: ethereumChain.nativeCurrency,
+                  rpcUrls: [ethereumChain.rpcUrl],
+                  blockExplorerUrls: ethereumChain.blockExplorerUrl
+                    ? [ethereumChain.blockExplorerUrl]
+                    : []
+                }
+              ]
+            });
+            currentChainId = 1;
+          } else {
+            throw caughtError instanceof Error
+              ? caughtError
+              : new Error("Failed to switch to Ethereum.");
+          }
+        }
+      }
+
+      setAddress(normalizedAddress);
+      setChainId(currentChainId);
+      setError(null);
+      autoSwitchAttemptRef.current = null;
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
