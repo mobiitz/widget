@@ -293,6 +293,13 @@ export function SwapWidget() {
         return;
       }
 
+      if (wallet.chainId !== sourceChainId) {
+        setInputTokenBalanceLabel("Switch to Ethereum to view balance");
+        return;
+      }
+
+      setInputTokenBalanceLabel("Loading balance...");
+
       try {
         const publicClient = wallet.getPublicClient(sourceChainId);
         const rawBalance =
@@ -319,7 +326,7 @@ export function SwapWidget() {
           return;
         }
 
-        setInputTokenBalanceLabel(null);
+        setInputTokenBalanceLabel("Balance unavailable");
       }
     };
 
@@ -328,7 +335,15 @@ export function SwapWidget() {
     return () => {
       isActive = false;
     };
-  }, [inputToken.address, inputToken.decimals, inputToken.symbol, sourceChainId, wallet]);
+  }, [
+    inputToken.address,
+    inputToken.decimals,
+    inputToken.symbol,
+    sourceChainId,
+    wallet.address,
+    wallet.chainId,
+    wallet.selectedWalletId
+  ]);
 
   const requestQuote = async (reason: "manual" | "refresh") => {
     if (!wallet.address) {
@@ -433,7 +448,6 @@ export function SwapWidget() {
     }
 
     const publicClient = wallet.getPublicClient(sourceChainId);
-    const walletClient = wallet.getWalletClient(sourceChainId);
     const spender =
       quoteRoute.issues?.allowance?.spender || quoteRoute.allowanceTarget;
     const approvalAmount = quoteRoute.sellAmount ?? fallbackSellAmount;
@@ -456,8 +470,7 @@ export function SwapWidget() {
 
     setSwapStatus("Submitting token approval.");
 
-    const approvalHash = await walletClient.sendTransaction({
-      account: wallet.address as Address,
+    const approvalHash = await wallet.sendTransaction(sourceChainId, {
       data: encodeFunctionData({
         abi: ERC20_ABI,
         functionName: "approve",
@@ -493,6 +506,14 @@ export function SwapWidget() {
         throw new Error(`Unsupported source chain ${sourceChainId}.`);
       }
 
+      if (quote.route.issues?.balance?.actual && quote.route.issues?.balance?.expected) {
+        const actualBalance = BigInt(quote.route.issues.balance.actual);
+        const expectedBalance = BigInt(quote.route.issues.balance.expected);
+        if (actualBalance < expectedBalance) {
+          throw new Error("Insufficient token balance for this swap.");
+        }
+      }
+
       if (wallet.chainId !== sourceChainId) {
         setSwapStatus(`Switching wallet to ${currentSourceChain.name}.`);
         await wallet.switchToChain(sourceChainId);
@@ -500,15 +521,18 @@ export function SwapWidget() {
 
       setSwapStatus("Checking allowance for 0x execution.");
       await ensureApprovalIfNeeded(quote.route, quote.inputAmountBaseUnits);
-      setSwapStatus("Submitting swap transaction.");
+      setSwapStatus("Open your wallet to submit the swap.");
 
-      const walletClient = wallet.getWalletClient(sourceChainId);
       const publicClient = wallet.getPublicClient(sourceChainId);
 
-      const txHash = await walletClient.sendTransaction({
-        account: wallet.address as Address,
-        chain: currentSourceChain.viemChain,
+      const txHash = await wallet.sendTransaction(sourceChainId, {
         data: (quote.route.transaction?.data ?? "0x") as Hex,
+        gas: quote.route.transaction?.gas
+          ? BigInt(quote.route.transaction.gas)
+          : undefined,
+        gasPrice: quote.route.transaction?.gasPrice
+          ? BigInt(quote.route.transaction.gasPrice)
+          : undefined,
         to: quote.route.transaction.to as Address,
         value: quote.route.transaction?.value
           ? BigInt(quote.route.transaction.value)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Address, Chain } from "viem";
+import type { Address, Chain, Hex } from "viem";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { arbitrum, base, bsc, mainnet, optimism, polygon } from "viem/chains";
 
@@ -22,6 +22,14 @@ export type EthereumProvider = {
     listener: (...args: unknown[]) => void
   ) => void;
   request: (request: ProviderRequest) => Promise<unknown>;
+};
+
+type SendTransactionParams = {
+  data?: Hex;
+  gas?: bigint;
+  gasPrice?: bigint;
+  to: Address;
+  value?: bigint;
 };
 
 type WindowWithWallet = Window & {
@@ -118,6 +126,10 @@ function shortenAddress(address: string | null) {
   }
 
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function toHexQuantity(value: bigint) {
+  return `0x${value.toString(16)}`;
 }
 
 function includesNormalized(value: string | undefined, fragment: string) {
@@ -430,6 +442,52 @@ export function useWallet() {
     });
   };
 
+  const sendTransaction = async (
+    targetChainId: number,
+    transaction: SendTransactionParams
+  ) => {
+    const provider = selectedWallet?.provider;
+
+    if (!provider || !address) {
+      throw new Error("Wallet is not connected.");
+    }
+
+    const chain = findSupportedChain(targetChainId);
+    if (!chain) {
+      throw new Error(`Unsupported chain: ${targetChainId}`);
+    }
+
+    const hash = await provider.request({
+      method: "eth_sendTransaction",
+      params: [
+        {
+          from: address,
+          to: transaction.to,
+          data: transaction.data ?? "0x",
+          value:
+            transaction.value !== undefined
+              ? toHexQuantity(transaction.value)
+              : undefined,
+          gas:
+            transaction.gas !== undefined
+              ? toHexQuantity(transaction.gas)
+              : undefined,
+          gasPrice:
+            transaction.gasPrice !== undefined
+              ? toHexQuantity(transaction.gasPrice)
+              : undefined,
+          chainId: `0x${chain.id.toString(16)}`
+        }
+      ]
+    });
+
+    if (typeof hash !== "string") {
+      throw new Error("Wallet did not return a transaction hash.");
+    }
+
+    return hash as Hex;
+  };
+
   return {
     address,
     chainId,
@@ -444,6 +502,7 @@ export function useWallet() {
     getPublicClient,
     getWalletClient,
     selectWallet: setSelectedWalletId,
+    sendTransaction,
     switchToChain
   };
 }
