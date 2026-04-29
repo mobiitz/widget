@@ -6,6 +6,7 @@ import {
   useRef,
   useState
 } from "react";
+import { flushSync } from "react-dom";
 import type { Address, Hex } from "viem";
 import {
   encodeFunctionData,
@@ -105,6 +106,14 @@ function shortHash(hash: string | null) {
   }
 
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+}
+
+function nextFrame() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      resolve();
+    });
+  });
 }
 function TokenIcon({
   address,
@@ -447,28 +456,33 @@ export function SwapWidget() {
       throw new Error("Wallet is not connected.");
     }
 
-    const publicClient = wallet.getPublicClient(sourceChainId);
-    const spender =
-      quoteRoute.issues?.allowance?.spender || quoteRoute.allowanceTarget;
+    const spender = quoteRoute.issues?.allowance?.spender || quoteRoute.allowanceTarget;
     const approvalAmount = quoteRoute.sellAmount ?? fallbackSellAmount;
 
     if (!spender || !approvalAmount) {
       return;
     }
 
-    const currentAllowance = await publicClient.readContract({
-      address: inputToken.address as Address,
-      abi: ERC20_ABI,
-      functionName: "allowance",
-      args: [wallet.address as Address, spender as Address]
-    });
+    const quotedAllowance = quoteRoute.issues?.allowance?.actual;
+    const currentAllowance =
+      quotedAllowance !== undefined
+        ? BigInt(quotedAllowance)
+        : await wallet.getPublicClient(sourceChainId).readContract({
+            address: inputToken.address as Address,
+            abi: ERC20_ABI,
+            functionName: "allowance",
+            args: [wallet.address as Address, spender as Address]
+          });
 
     if (currentAllowance >= BigInt(approvalAmount)) {
       setSwapStatus("Approval already satisfied. Sending swap transaction.");
       return;
     }
 
-    setSwapStatus("Submitting token approval.");
+    flushSync(() => {
+      setSwapStatus("Approval required. Confirm the approval in your wallet.");
+    });
+    await nextFrame();
 
     const approvalHash = await wallet.sendTransaction(sourceChainId, {
       data: encodeFunctionData({
@@ -481,7 +495,9 @@ export function SwapWidget() {
     });
 
     setSwapStatus(`Approval submitted: ${shortHash(approvalHash)}`);
-    await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+    await wallet.getPublicClient(sourceChainId).waitForTransactionReceipt({
+      hash: approvalHash
+    });
     setSwapStatus("Approval confirmed. Preparing swap transaction.");
   };
 
@@ -496,9 +512,11 @@ export function SwapWidget() {
       return;
     }
 
-    setSwapLoading(true);
-    setSwapStatus(null);
-    setSourceTxHash(null);
+    flushSync(() => {
+      setSwapLoading(true);
+      setSwapStatus("Preparing swap...");
+      setSourceTxHash(null);
+    });
 
     try {
       const currentSourceChain = findSupportedChain(sourceChainId);
@@ -521,7 +539,10 @@ export function SwapWidget() {
 
       setSwapStatus("Checking allowance for 0x execution.");
       await ensureApprovalIfNeeded(quote.route, quote.inputAmountBaseUnits);
-      setSwapStatus("Open your wallet to submit the swap.");
+      flushSync(() => {
+        setSwapStatus("Open your wallet to submit the swap.");
+      });
+      await nextFrame();
 
       const publicClient = wallet.getPublicClient(sourceChainId);
 
