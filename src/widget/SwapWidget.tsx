@@ -11,7 +11,6 @@ import {
   encodeFunctionData,
   formatUnits,
   getAddress,
-  isAddress,
   parseAbi,
   parseUnits
 } from "viem";
@@ -34,11 +33,7 @@ type QuoteState = {
   route: ZeroExQuote;
 };
 
-type PublicClientGetter = ReturnType<typeof useWallet>["getPublicClient"];
-
 type TokenPickerProps = {
-  chainId: number;
-  getPublicClient: PublicClientGetter;
   label: string;
   onSelect: (token: TokenOption) => void;
   options: TokenOption[];
@@ -50,19 +45,19 @@ const ERC20_ABI = parseAbi([
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)"
 ]);
-const ERC20_METADATA_ABI = parseAbi([
-  "function decimals() view returns (uint8)",
-  "function name() view returns (string)",
-  "function symbol() view returns (string)"
-]);
 const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
 const ETHEREUM_ONLY_CHAINS = SUPPORTED_CHAINS.filter((chain) => chain.id === 1);
-const CUSTOM_TOKEN_CACHE = new Map<string, TokenOption>();
 const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
-const REMOTE_ETHEREUM_TOKEN_LIST_URL =
-  "https://raw.githubusercontent.com/viaprotocol/tokenlists/main/tokenlists/ethereum.json";
 const QUOTE_REFRESH_INTERVAL_MS = 30_000;
+const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
+  (token) =>
+    token.address.toLowerCase() === DEFAULT_SOURCE_TOKEN.toLowerCase() ||
+    token.address.toLowerCase() === NATIVE_TOKEN_ADDRESS
+);
+const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
+  (token) => token.address.toLowerCase() === DEFAULT_DESTINATION_TOKEN.toLowerCase()
+);
 
 function getDefaultToken(address: string) {
   return (
@@ -78,31 +73,6 @@ function getTokenIconUrl(address: string) {
   }
 
   return `https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/ethereum/assets/${getAddress(address)}/logo.png`;
-}
-
-type RemoteTokenListEntry = {
-  address: string;
-  chainId: number;
-  decimals: number;
-  listedIn?: string[];
-  logoURI?: string;
-  name: string;
-  symbol: string;
-};
-
-function mergeTokenOptions(...lists: TokenOption[][]) {
-  const seen = new Map<string, TokenOption>();
-
-  for (const list of lists) {
-    for (const token of list) {
-      const normalizedAddress = token.address.toLowerCase();
-      if (!seen.has(normalizedAddress)) {
-        seen.set(normalizedAddress, token);
-      }
-    }
-  }
-
-  return [...seen.values()];
 }
 
 function formatTokenAmount(amount: string | undefined, decimals: number) {
@@ -132,54 +102,6 @@ function shortHash(hash: string | null) {
 
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
 }
-
-async function importTokenByAddress(
-  chainId: number,
-  address: string,
-  getPublicClient: PublicClientGetter
-) {
-  const normalizedAddress = getAddress(address);
-  const cacheKey = `${chainId}:${normalizedAddress.toLowerCase()}`;
-  const cachedToken = CUSTOM_TOKEN_CACHE.get(cacheKey);
-
-  if (cachedToken) {
-    return cachedToken;
-  }
-
-  if (normalizedAddress.toLowerCase() === NATIVE_TOKEN_ADDRESS) {
-    return ETHEREUM_TOKENS[0];
-  }
-
-  const publicClient = getPublicClient(chainId);
-  const [symbol, name, decimals] = await Promise.all([
-    publicClient.readContract({
-      address: normalizedAddress as Address,
-      abi: ERC20_METADATA_ABI,
-      functionName: "symbol"
-    }),
-    publicClient.readContract({
-      address: normalizedAddress as Address,
-      abi: ERC20_METADATA_ABI,
-      functionName: "name"
-    }),
-    publicClient.readContract({
-      address: normalizedAddress as Address,
-      abi: ERC20_METADATA_ABI,
-      functionName: "decimals"
-    })
-  ]);
-
-  const token = {
-    address: normalizedAddress,
-    decimals: Number(decimals),
-    name,
-    symbol
-  } satisfies TokenOption;
-
-  CUSTOM_TOKEN_CACHE.set(cacheKey, token);
-  return token;
-}
-
 function TokenIcon({
   address,
   logoURI,
@@ -210,8 +132,6 @@ function TokenIcon({
 }
 
 function TokenPicker({
-  chainId,
-  getPublicClient,
   label,
   onSelect,
   options,
@@ -221,15 +141,11 @@ function TokenPicker({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [isImporting, setIsImporting] = useState(false);
-  const [pickerError, setPickerError] = useState<string | null>(null);
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
     if (!isOpen) {
       setQuery("");
-      setPickerError(null);
-      setIsImporting(false);
       return;
     }
 
@@ -247,52 +163,14 @@ function TokenPicker({
 
   const filteredOptions = useMemo(() => {
     const normalizedQuery = deferredQuery.trim().toLowerCase();
-    const candidateOptions = normalizedQuery
+    return normalizedQuery
       ? options.filter((token) =>
           [token.symbol, token.name, token.address].some((value) =>
             value.toLowerCase().includes(normalizedQuery)
           )
         )
       : options;
-
-    return candidateOptions.slice(0, 100);
   }, [deferredQuery, options]);
-
-  const customImportAddress = useMemo(() => {
-    if (!deferredQuery.trim() || !isAddress(deferredQuery.trim())) {
-      return null;
-    }
-
-    const normalizedAddress = deferredQuery.trim().toLowerCase();
-    const alreadyListed = options.some(
-      (token) => token.address.toLowerCase() === normalizedAddress
-    );
-
-    return alreadyListed ? null : deferredQuery.trim();
-  }, [deferredQuery, options]);
-
-  const handleImport = async (address: string) => {
-    setIsImporting(true);
-    setPickerError(null);
-
-    try {
-      const importedToken = await importTokenByAddress(
-        chainId,
-        address,
-        getPublicClient
-      );
-      onSelect(importedToken);
-      setIsOpen(false);
-    } catch (error) {
-      setPickerError(
-        error instanceof Error
-          ? error.message
-          : "Failed to import that token address."
-      );
-    } finally {
-      setIsImporting(false);
-    }
-  };
 
   return (
     <div className="bw-token-field" ref={containerRef}>
@@ -329,9 +207,8 @@ function TokenPicker({
             className="bw-token-search"
             onChange={(event) => {
               setQuery(event.target.value);
-              setPickerError(null);
             }}
-            placeholder="Search symbol, name, or paste token address"
+            placeholder="Search symbol or name"
             spellCheck={false}
             type="text"
             value={query}
@@ -366,31 +243,9 @@ function TokenPicker({
                 <small>{shortHash(token.address) ?? token.address}</small>
               </button>
             ))}
-
-            {customImportAddress ? (
-              <button
-                className="bw-token-option bw-token-option-import"
-                disabled={isImporting}
-                onClick={() => {
-                  void handleImport(customImportAddress);
-                }}
-                type="button"
-              >
-                <span className="bw-token-option-main">
-                  <span className="bw-token-icon-fallback">0x</span>
-                  <span className="bw-token-option-copy">
-                    <strong>{isImporting ? "Importing token..." : "Use custom token"}</strong>
-                    <small>{customImportAddress}</small>
-                  </span>
-                </span>
-              </button>
-            ) : null}
           </div>
-
-          {pickerError ? <p className="bw-error bw-picker-error">{pickerError}</p> : null}
         </div>
       ) : null}
-
     </div>
   );
 }
@@ -412,15 +267,9 @@ export function SwapWidget() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapStatus, setSwapStatus] = useState<string | null>(null);
   const [sourceTxHash, setSourceTxHash] = useState<string | null>(null);
-  const [catalogTokens, setCatalogTokens] = useState<TokenOption[]>([]);
   const [quoteLastUpdatedAt, setQuoteLastUpdatedAt] = useState<number | null>(null);
   const [quoteRefreshLabel, setQuoteRefreshLabel] = useState<string | null>(null);
   const [inputTokenBalanceLabel, setInputTokenBalanceLabel] = useState<string | null>(null);
-
-  const tokenOptions = useMemo(
-    () => mergeTokenOptions(ETHEREUM_TOKENS, catalogTokens, [inputToken, outputToken]),
-    [catalogTokens, inputToken, outputToken]
-  );
 
   useEffect(() => {
     if (sourceChainId !== 1) {
@@ -430,63 +279,6 @@ export function SwapWidget() {
       setDestinationChainId(1);
     }
   }, [destinationChainId, sourceChainId]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    const loadRemoteTokenCatalog = async () => {
-      try {
-        const response = await fetch(REMOTE_ETHEREUM_TOKEN_LIST_URL, {
-          headers: {
-            Accept: "application/json"
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Token catalog request failed with status ${response.status}.`);
-        }
-
-        const tokens = (await response.json()) as RemoteTokenListEntry[];
-        const rankedTokens = tokens
-          .filter((token) => token.chainId === 1 && isAddress(token.address))
-          .sort((leftToken, rightToken) => {
-            const sourceCountDelta =
-              (rightToken.listedIn?.length ?? 0) - (leftToken.listedIn?.length ?? 0);
-
-            if (sourceCountDelta !== 0) {
-              return sourceCountDelta;
-            }
-
-            return leftToken.symbol.localeCompare(rightToken.symbol);
-          })
-          .map((token) => ({
-            address: getAddress(token.address),
-            decimals: token.decimals,
-            logoURI: token.logoURI,
-            name: token.name,
-            symbol: token.symbol
-          }));
-
-        if (!isActive) {
-          return;
-        }
-
-        setCatalogTokens(rankedTokens);
-      } catch {
-        if (!isActive) {
-          return;
-        }
-
-        setCatalogTokens([]);
-      }
-    };
-
-    void loadRemoteTokenCatalog();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -746,8 +538,6 @@ export function SwapWidget() {
   return (
     <div className="bw-app">
       <div className="bw-card">
-        <div className="bw-ambient bw-ambient-one" />
-        <div className="bw-ambient bw-ambient-two" />
         <div className="bw-header">
           <div>
             <p className="bw-eyebrow">MBTC Swap</p>
@@ -846,14 +636,12 @@ export function SwapWidget() {
 
           <div className="bw-field bw-field-full">
             <TokenPicker
-              chainId={sourceChainId}
-              getPublicClient={wallet.getPublicClient}
               label="Input token"
-            onSelect={(token) => {
-              setInputToken(token);
-              setQuote(null);
+              onSelect={(token) => {
+                setInputToken(token);
+                setQuote(null);
               }}
-              options={tokenOptions}
+              options={INPUT_TOKEN_OPTIONS}
               selectedToken={inputToken}
               trailingLabel={inputTokenBalanceLabel}
             />
@@ -861,14 +649,12 @@ export function SwapWidget() {
 
           <div className="bw-field bw-field-full">
             <TokenPicker
-            chainId={destinationChainId}
-            getPublicClient={wallet.getPublicClient}
-            label="Output token"
-            onSelect={(token) => {
-              setOutputToken(token);
-              setQuote(null);
+              label="Output token"
+              onSelect={(token) => {
+                setOutputToken(token);
+                setQuote(null);
               }}
-              options={tokenOptions}
+              options={OUTPUT_TOKEN_OPTIONS}
               selectedToken={outputToken}
             />
           </div>
