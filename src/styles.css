@@ -20,16 +20,16 @@
 .bw-app {
   background: transparent;
   min-height: 100%;
-  padding: 18px;
+  padding: 0;
   position: relative;
 }
 
 .bw-card {
-  background: linear-gradient(180deg, rgba(14, 22, 36, 0.98) 0%, rgba(8, 14, 26, 0.98) 100%);
-  border: 1px solid rgba(123, 153, 214, 0.2);
+  background: #0b1320;
+  border: 1px solid #1f314b;
   border-radius: 28px;
   box-shadow: none;
-  margin: 0 auto;
+  margin: 0;
   max-width: 460px;
   overflow: visible;
   padding: 26px;
@@ -38,7 +38,7 @@
 }
 
 .bw-card::after {
-  background: rgba(94, 227, 255, 0.06);
+  background: #16314b;
   content: "";
   height: 1px;
   left: 24px;
@@ -96,8 +96,8 @@
 }
 
 .bw-badge {
-  background: rgba(15, 26, 43, 0.54);
-  border: 1px solid rgba(136, 163, 213, 0.12);
+  background: #101a2b;
+  border: 1px solid #223754;
   border-radius: 999px;
   color: #c6d6f1;
   font-size: 0.68rem;
@@ -109,7 +109,7 @@
 }
 
 .bw-badge-accent {
-  background: linear-gradient(135deg, rgba(76, 219, 255, 0.2), rgba(87, 127, 255, 0.22));
+  background: #153252;
   color: #eef8ff;
 }
 
@@ -135,8 +135,8 @@
 
 .bw-wallet-option {
   align-items: flex-start;
-  background: linear-gradient(180deg, rgba(8, 16, 30, 0.95), rgba(7, 14, 25, 0.92));
-  border: 1px solid rgba(128, 156, 208, 0.14);
+  background: #0d1625;
+  border: 1px solid #1d2f49;
   border-radius: 16px;
   box-shadow: none;
   color: #edf4ff;
@@ -166,14 +166,14 @@
 }
 
 .bw-wallet-option:hover {
-  border-color: rgba(86, 212, 255, 0.34);
+  border-color: #2a4f79;
   box-shadow: none;
   transform: translateY(-1px);
 }
 
 .bw-wallet-option-active {
-  background: linear-gradient(180deg, rgba(15, 31, 54, 0.98), rgba(8, 18, 34, 0.98));
-  border-color: rgba(86, 212, 255, 0.54);
+  background: #10213a;
+  border-color: #336494;
   box-shadow: none;
 }
 
@@ -245,10 +245,10 @@
 .bw-picker-trigger {
   align-items: center;
   appearance: none;
-  background: linear-gradient(180deg, rgba(8, 16, 30, 0.96), rgba(6, 13, 24, 0.94));
-  border: 1px solid rgba(128, 156, 208, 0.15);
+  background: #0d1625;
+  border: 1px solid #1d2f49;
   border-radius: 16px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: none;
   color: #edf4ff;
   cursor: pointer;
   display: flex;
@@ -267,7 +267,7 @@
 
 .bw-picker-trigger:hover,
 .bw-picker-trigger-active {
-  border-color: rgba(86, 212, 255, 0.54);
+  border-color: #336494;
   box-shadow: none;
   transform: translateY(-1px);
 }
@@ -312,9 +312,8 @@
 }
 
 .bw-token-popover {
-  background:
-    linear-gradient(180deg, rgba(11, 22, 37, 0.98), rgba(8, 16, 28, 0.98));
-  border: 1px solid rgba(128, 156, 208, 0.2);
+  background: #0b1320;
+  border: 1px solid #223754;
   border-radius: 18px;
   box-shadow: none;
   display: grid;
@@ -330,8 +329,8 @@
 
 .bw-token-search {
   appearance: none;
-  background: rgba(4, 11, 22, 0.88);
-  border: 1px solid rgba(128, 156, 208, 0.18);
+  background: #0a111d;
+  border: 1px solid #213754;
   border-radius: 14px;
   color: #edf4ff;
   font: inherit;
@@ -342,7 +341,7 @@
 }
 
 .bw-token-search:focus {
-  border-color: rgba(86, 212, 255, 0.54);
+  border-color: #336494;
   box-shadow: none;
 }
 
@@ -356,8 +355,8 @@
 
 .bw-token-option {
   align-items: center;
-  background: rgba(7, 15, 29, 0.86);
-  border: 1px solid rgba(128, 156, 208, 0.12);
+  background: #0d1625;
+  border: 1px solid #1c2d46;
   border-radius: 14px;
   color: #edf4ff;
   cursor: pointer;
@@ -375,8 +374,8 @@
 
 .bw-token-option:hover:not(:disabled),
 .bw-token-option-active {
-  background: rgba(11, 22, 39, 0.98);
-  border-color: rgba(86, 212, 255, 0.38);
+  background: #101d31;
+  border-color: #336494;
   box-shadow: none;
   transform: translateY(-1px);
 }
@@ -396,7 +395,7 @@
 }
 
 .bw-token-icon {
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   display: block;
   object-fit: cover;
   box-shadow: none;
@@ -420,8 +419,8 @@
 .bw-field input,
 .bw-field select {
   appearance: none;
-  background: linear-gradient(180deg, rgba(8, 16, 30, 0.96), rgba(6, 13, 24, 0.94));
-  border: 1px solid rgba(128, 156, 208, 0.15);
+  background: #0d1625;
+  border: 1px solid #1d2f49;
   border-radius: 16px;
   box-shadow: none;
   color: #edf4ff;
@@ -438,7 +437,7 @@
 
 .bw-field input:focus,
 .bw-field select:focus {
-  border-color: rgba(86, 212, 255, 0.54);
+  border-color: #336494;
   box-shadow: none;
   transform: translateY(-1px);
 }
@@ -469,14 +468,7 @@
 }
 
 .bw-button::before {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
-  border-radius: inherit;
-  content: "";
-  inset: 0;
-  opacity: 0.9;
-  pointer-events: none;
-  position: absolute;
-  transform: translateX(-18%);
+  content: none;
 }
 
 .bw-button:hover:not(:disabled) {
@@ -491,16 +483,15 @@
 }
 
 .bw-button-secondary {
-  background: linear-gradient(180deg, rgba(12, 22, 39, 0.98), rgba(8, 16, 28, 0.96));
-  border: 1px solid rgba(136, 163, 213, 0.14);
+  background: #0f1a2b;
+  border: 1px solid #233754;
   box-shadow: none;
   color: #edf4ff;
 }
 
 .bw-summary {
-  background:
-    linear-gradient(180deg, rgba(7, 14, 25, 0.9), rgba(5, 11, 21, 0.86));
-  border: 1px solid rgba(128, 156, 208, 0.1);
+  background: #0a111d;
+  border: 1px solid #1b2c43;
   border-radius: 22px;
   box-shadow: none;
   display: grid;
@@ -511,7 +502,7 @@
 }
 
 .bw-summary::before {
-  background: linear-gradient(90deg, rgba(90, 214, 255, 0.3), transparent 65%);
+  background: #16314b;
   content: "";
   height: 1px;
   left: 18px;
@@ -603,7 +594,7 @@
 
 @media (max-width: 560px) {
   .bw-app {
-    padding: 12px;
+    padding: 0;
   }
 
   .bw-card {
