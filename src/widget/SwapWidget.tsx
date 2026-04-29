@@ -291,7 +291,7 @@ function TokenPicker({
   };
 
   return (
-    <div className="bw-field" ref={containerRef}>
+    <div className="bw-token-field" ref={containerRef}>
       <span>{label}</span>
       <button
         aria-expanded={isOpen}
@@ -660,10 +660,6 @@ export function SwapWidget() {
           </div>
         </div>
 
-        <p className="bw-description">
-          Swap Ethereum tokens with <code>USDC -&gt; MBTC</code> preselected.
-        </p>
-
         <div className="bw-wallet-stack">
           <div className="bw-wallet-picker">
             {wallet.wallets.map((walletOption) => (
@@ -747,7 +743,8 @@ export function SwapWidget() {
             </select>
           </label>
 
-          <TokenPicker
+          <div className="bw-field bw-field-full">
+            <TokenPicker
             chainId={sourceChainId}
             getPublicClient={wallet.getPublicClient}
             label="Input token"
@@ -757,9 +754,11 @@ export function SwapWidget() {
             }}
             options={tokenOptions}
             selectedToken={inputToken}
-          />
+            />
+          </div>
 
-          <TokenPicker
+          <div className="bw-field bw-field-full">
+            <TokenPicker
             chainId={destinationChainId}
             getPublicClient={wallet.getPublicClient}
             label="Output token"
@@ -769,7 +768,8 @@ export function SwapWidget() {
             }}
             options={tokenOptions}
             selectedToken={outputToken}
-          />
+            />
+          </div>
 
           <label className="bw-field bw-field-full">
             <span>Amount</span>

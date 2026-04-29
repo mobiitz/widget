@@ -242,7 +242,19 @@
   position: relative;
 }
 
+.bw-token-field {
+  display: grid;
+  gap: 8px;
+  position: relative;
+}
+
 .bw-field span {
+  color: #d6e3f8;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.bw-token-field > span {
   color: #d6e3f8;
   font-size: 0.86rem;
   font-weight: 700;
