@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Address, Chain, Hex } from "viem";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import { arbitrum, base, bsc, mainnet, optimism, polygon } from "viem/chains";
@@ -182,6 +182,7 @@ export function useWallet() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnected, setIsDisconnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const autoSwitchAttemptRef = useRef<string | null>(null);
 
   useEffect(() => {
     const discovered: Partial<Record<WalletId, WalletOption>> = {};
@@ -429,6 +430,27 @@ export function useWallet() {
       setChainId(targetChainId);
     }
   };
+
+  useEffect(() => {
+    if (!address || !selectedWallet || isDisconnected || chainId === null || chainId === 1) {
+      return;
+    }
+
+    const attemptKey = `${selectedWallet.id}:${address}:${chainId}`;
+    if (autoSwitchAttemptRef.current === attemptKey) {
+      return;
+    }
+
+    autoSwitchAttemptRef.current = attemptKey;
+
+    void switchToChain(1).catch((caughtError) => {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Please switch to Ethereum to use this widget."
+      );
+    });
+  }, [address, chainId, isDisconnected, selectedWallet]);
 
   const getWalletClient = (targetChainId: number) => {
     const provider = selectedWallet?.provider;
