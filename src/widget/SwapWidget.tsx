@@ -47,7 +47,6 @@ const ERC20_ABI = parseAbi([
   "function approve(address spender, uint256 amount) returns (bool)"
 ]);
 const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
-const ETHEREUM_ONLY_CHAINS = SUPPORTED_CHAINS.filter((chain) => chain.id === 1);
 const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
 const DEFAULT_INPUT_TOKEN_ADDRESSES = new Set([
@@ -660,28 +659,6 @@ export function SwapWidget() {
         </div>
 
         <div className="bw-grid">
-          <label className="bw-field">
-            <span>Source chain</span>
-            <select disabled value={sourceChainId}>
-              {ETHEREUM_ONLY_CHAINS.map((chain) => (
-                <option key={chain.id} value={chain.id}>
-                  {chain.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="bw-field">
-            <span>Destination chain</span>
-            <select disabled value={destinationChainId}>
-              {ETHEREUM_ONLY_CHAINS.map((chain) => (
-                <option key={chain.id} value={chain.id}>
-                  {chain.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <div className="bw-field bw-field-full">
             <TokenPicker
               label="Input token"
