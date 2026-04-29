@@ -49,11 +49,15 @@ const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address owner) view retu
 const ETHEREUM_ONLY_CHAINS = SUPPORTED_CHAINS.filter((chain) => chain.id === 1);
 const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
+const DEFAULT_INPUT_TOKEN_ADDRESSES = new Set([
+  DEFAULT_SOURCE_TOKEN.toLowerCase(),
+  NATIVE_TOKEN_ADDRESS,
+  getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7").toLowerCase(),
+  getAddress("0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d").toLowerCase()
+]);
 const QUOTE_REFRESH_INTERVAL_MS = 30_000;
 const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
-  (token) =>
-    token.address.toLowerCase() === DEFAULT_SOURCE_TOKEN.toLowerCase() ||
-    token.address.toLowerCase() === NATIVE_TOKEN_ADDRESS
+  (token) => DEFAULT_INPUT_TOKEN_ADDRESSES.has(token.address.toLowerCase())
 );
 const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
   (token) => token.address.toLowerCase() === DEFAULT_DESTINATION_TOKEN.toLowerCase()
@@ -540,8 +544,7 @@ export function SwapWidget() {
       <div className="bw-card">
         <div className="bw-header">
           <div>
-            <p className="bw-eyebrow">MBTC Swap</p>
-            <h1>MBTC Swap</h1>
+            <h1>Buy $MBTC Here</h1>
           </div>
           <div className="bw-badges">
             <span className="bw-badge">{ZEROX_ENVIRONMENT_LABEL}</span>

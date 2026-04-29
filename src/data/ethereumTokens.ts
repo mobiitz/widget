@@ -35,6 +35,12 @@ export const ETHEREUM_TOKENS: TokenOption[] = [
     symbol: "USDT"
   },
   {
+    address: "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d",
+    decimals: 18,
+    name: "World Liberty Financial USD",
+    symbol: "USD1"
+  },
+  {
     address: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
     decimals: 18,
     name: "Dai Stablecoin",
