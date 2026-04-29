@@ -402,7 +402,17 @@ export function SwapWidget() {
       }
 
       if (wallet.chainId !== sourceChainId) {
-        setInputTokenBalanceLabel("Switch to Ethereum to view balance");
+        setInputTokenBalanceLabel("Switching to Ethereum...");
+
+        try {
+          await wallet.switchToChain(sourceChainId);
+        } catch {
+          if (!isActive) {
+            return;
+          }
+
+          setInputTokenBalanceLabel("Switch to Ethereum to view balance");
+        }
         return;
       }
 
