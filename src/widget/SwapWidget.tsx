@@ -43,6 +43,7 @@ type TokenPickerProps = {
   onSelect: (token: TokenOption) => void;
   options: TokenOption[];
   selectedToken: TokenOption;
+  trailingLabel?: string | null;
 };
 
 const ERC20_ABI = parseAbi([
@@ -54,6 +55,7 @@ const ERC20_METADATA_ABI = parseAbi([
   "function name() view returns (string)",
   "function symbol() view returns (string)"
 ]);
+const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
 const ETHEREUM_ONLY_CHAINS = SUPPORTED_CHAINS.filter((chain) => chain.id === 1);
 const CUSTOM_TOKEN_CACHE = new Map<string, TokenOption>();
 const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
@@ -213,7 +215,8 @@ function TokenPicker({
   label,
   onSelect,
   options,
-  selectedToken
+  selectedToken,
+  trailingLabel
 }: TokenPickerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -293,7 +296,10 @@ function TokenPicker({
 
   return (
     <div className="bw-token-field" ref={containerRef}>
-      <span>{label}</span>
+      <div className="bw-field-heading">
+        <span>{label}</span>
+        {trailingLabel ? <small>{trailingLabel}</small> : null}
+      </div>
       <button
         aria-expanded={isOpen}
         className={`bw-picker-trigger${isOpen ? " bw-picker-trigger-active" : ""}`}
@@ -409,6 +415,7 @@ export function SwapWidget() {
   const [catalogTokens, setCatalogTokens] = useState<TokenOption[]>([]);
   const [quoteLastUpdatedAt, setQuoteLastUpdatedAt] = useState<number | null>(null);
   const [quoteRefreshLabel, setQuoteRefreshLabel] = useState<string | null>(null);
+  const [inputTokenBalanceLabel, setInputTokenBalanceLabel] = useState<string | null>(null);
 
   const tokenOptions = useMemo(
     () => mergeTokenOptions(ETHEREUM_TOKENS, catalogTokens, [inputToken, outputToken]),
@@ -480,6 +487,52 @@ export function SwapWidget() {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadInputTokenBalance = async () => {
+      if (!wallet.address) {
+        setInputTokenBalanceLabel(null);
+        return;
+      }
+
+      try {
+        const publicClient = wallet.getPublicClient(sourceChainId);
+        const rawBalance =
+          inputToken.address.toLowerCase() === NATIVE_TOKEN_ADDRESS
+            ? await publicClient.getBalance({
+                address: wallet.address as Address
+              })
+            : await publicClient.readContract({
+                address: inputToken.address as Address,
+                abi: ERC20_BALANCE_ABI,
+                functionName: "balanceOf",
+                args: [wallet.address as Address]
+              });
+
+        if (!isActive) {
+          return;
+        }
+
+        setInputTokenBalanceLabel(
+          `Balance: ${formatTokenAmount(rawBalance.toString(), inputToken.decimals)} ${inputToken.symbol}`
+        );
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        setInputTokenBalanceLabel(null);
+      }
+    };
+
+    void loadInputTokenBalance();
+
+    return () => {
+      isActive = false;
+    };
+  }, [inputToken.address, inputToken.decimals, inputToken.symbol, sourceChainId, wallet]);
 
   const requestQuote = async (reason: "manual" | "refresh") => {
     if (!wallet.address) {
@@ -793,15 +846,16 @@ export function SwapWidget() {
 
           <div className="bw-field bw-field-full">
             <TokenPicker
-            chainId={sourceChainId}
-            getPublicClient={wallet.getPublicClient}
-            label="Input token"
+              chainId={sourceChainId}
+              getPublicClient={wallet.getPublicClient}
+              label="Input token"
             onSelect={(token) => {
               setInputToken(token);
               setQuote(null);
-            }}
-            options={tokenOptions}
-            selectedToken={inputToken}
+              }}
+              options={tokenOptions}
+              selectedToken={inputToken}
+              trailingLabel={inputTokenBalanceLabel}
             />
           </div>
 
@@ -813,9 +867,9 @@ export function SwapWidget() {
             onSelect={(token) => {
               setOutputToken(token);
               setQuote(null);
-            }}
-            options={tokenOptions}
-            selectedToken={outputToken}
+              }}
+              options={tokenOptions}
+              selectedToken={outputToken}
             />
           </div>
 

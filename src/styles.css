@@ -248,6 +248,13 @@
   position: relative;
 }
 
+.bw-field-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
 .bw-field span {
   color: #d6e3f8;
   font-size: 0.86rem;
@@ -258,6 +265,15 @@
   color: #d6e3f8;
   font-size: 0.86rem;
   font-weight: 700;
+}
+
+.bw-field-heading small {
+  color: #7f9ac4;
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bw-field small {
