@@ -811,7 +811,7 @@ export function SwapWidget() {
           </div>
 
           <label className="bw-field bw-field-full">
-            <span>Amount</span>
+            <span>Amount to spend</span>
             <input
               inputMode="decimal"
               min="0"
@@ -836,7 +836,7 @@ export function SwapWidget() {
             }}
             type="button"
           >
-            {quoteLoading ? "Fetching quote..." : "Get Quote"}
+            {quoteLoading ? "Fetching quote..." : "Step 1. Get Quote"}
           </button>
 
           <button
@@ -847,7 +847,7 @@ export function SwapWidget() {
             }}
             type="button"
           >
-            {swapLoading ? "Swapping..." : "Swap"}
+            {swapLoading ? "Swapping..." : "Step 2. Swap"}
           </button>
         </div>
 
