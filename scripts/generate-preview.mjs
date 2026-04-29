@@ -21,9 +21,7 @@ const previewHtml = `<!doctype html>
       body {
         margin: 0;
         min-height: 100vh;
-        background:
-          radial-gradient(circle at top, rgba(30, 89, 180, 0.35), transparent 35%),
-          linear-gradient(180deg, #06101c 0%, #02070f 100%);
+        background: linear-gradient(180deg, #06101c 0%, #02070f 100%);
         color: #edf4ff;
       }
 
@@ -91,7 +89,6 @@ const previewHtml = `<!doctype html>
         border: 1px solid rgba(136, 163, 213, 0.16);
         border-radius: 24px;
         background: rgba(8, 17, 29, 0.74);
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
         padding: 22px;
       }
 
