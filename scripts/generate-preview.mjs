@@ -26,102 +26,9 @@ const previewHtml = `<!doctype html>
       }
 
       main {
-        width: min(1120px, calc(100% - 32px));
+        width: min(520px, calc(100% - 24px));
         margin: 0 auto;
-        padding: 40px 0 64px;
-      }
-
-      .hero {
-        display: grid;
-        gap: 16px;
-        margin-bottom: 28px;
-      }
-
-      .eyebrow {
-        margin: 0;
-        color: #7ab6ff;
-        font-size: 0.8rem;
-        font-weight: 800;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-      }
-
-      h1 {
-        margin: 0;
-        font-size: clamp(2.2rem, 4vw, 4rem);
-        letter-spacing: -0.05em;
-        line-height: 0.95;
-      }
-
-      .copy {
-        margin: 0;
-        max-width: 58ch;
-        color: #a6bbdb;
-        font-size: 1rem;
-        line-height: 1.6;
-      }
-
-      .meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 6px;
-      }
-
-      .pill {
-        border: 1px solid rgba(136, 163, 213, 0.18);
-        border-radius: 999px;
-        padding: 8px 12px;
-        background: rgba(9, 17, 29, 0.78);
-        color: #d8e6fb;
-        font-size: 0.78rem;
-        font-weight: 700;
-      }
-
-      .layout {
-        display: grid;
-        gap: 28px;
-        grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
-        align-items: start;
-      }
-
-      .panel {
-        border: 1px solid rgba(136, 163, 213, 0.16);
-        border-radius: 24px;
-        background: rgba(8, 17, 29, 0.74);
-        padding: 22px;
-      }
-
-      .panel h2 {
-        margin: 0 0 12px;
-        font-size: 1rem;
-        letter-spacing: -0.03em;
-      }
-
-      .panel p,
-      .panel li,
-      .panel code {
-        color: #b5c8e7;
-        font-size: 0.92rem;
-        line-height: 1.6;
-      }
-
-      .panel ul {
-        margin: 0;
-        padding-left: 18px;
-      }
-
-      pre {
-        margin: 14px 0 0;
-        overflow-x: auto;
-        border-radius: 16px;
-        padding: 14px;
-        background: rgba(3, 8, 18, 0.92);
-        border: 1px solid rgba(136, 163, 213, 0.12);
-      }
-
-      a {
-        color: #7fdcff;
+        padding: 24px 0;
       }
 
       #preview-widget {
@@ -143,44 +50,11 @@ const previewHtml = `<!doctype html>
         margin-bottom: 6px;
         color: #fff4f7;
       }
-
-      @media (max-width: 900px) {
-        .layout {
-          grid-template-columns: 1fr;
-        }
-      }
     </style>
   </head>
   <body>
     <main>
-      <section class="hero">
-        <p class="eyebrow">Live Preview</p>
-        <h1>MBTC Swap Widget</h1>
-        <p class="copy">
-          This GitHub Pages front page loads the production <code>widget.js</code>
-          bundle exactly as a third-party site would. Use it to confirm the
-          latest deployed build, wallet connection flow, and 0x quote
-          behavior before embedding elsewhere.
-        </p>
-        <div class="meta">
-          <span class="pill">Preview URL: /widget/</span>
-          <span class="pill">Bundle URL: /widget/widget.js</span>
-        </div>
-      </section>
-
-      <section class="layout">
-        <div id="preview-widget"></div>
-
-        <aside class="panel">
-          <h2>Embed Snippet</h2>
-          <p>Use this exact embed on Squarespace or any other site:</p>
-          <pre><code>&lt;div id="my-swap-widget"&gt;&lt;/div&gt;
-&lt;script src="https://mobiitz.github.io/widget/widget.js"&gt;&lt;/script&gt;
-&lt;script&gt;
-  BungeeWidget.init({ targetId: "my-swap-widget" });
-&lt;/script&gt;</code></pre>
-        </aside>
-      </section>
+      <div id="preview-widget"></div>
     </main>
 
     <script>
