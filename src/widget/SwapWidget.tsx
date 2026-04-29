@@ -149,6 +149,12 @@ function nextFrame() {
     });
   });
 }
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
 function TokenIcon({
   address,
   logoURI,
@@ -319,6 +325,64 @@ export function SwapWidget() {
   const [quoteRefreshLabel, setQuoteRefreshLabel] = useState<string | null>(null);
   const [inputTokenBalanceLabel, setInputTokenBalanceLabel] = useState<string | null>(null);
 
+  const readProviderUint256 = async (
+    contractAddress: Address,
+    data: Hex
+  ) => {
+    const provider = wallet.selectedWallet?.provider;
+    if (!provider) {
+      throw new Error("Wallet provider is unavailable.");
+    }
+
+    const response = await provider.request({
+      method: "eth_call",
+      params: [
+        {
+          to: contractAddress,
+          data
+        },
+        "latest"
+      ]
+    });
+
+    if (typeof response !== "string") {
+      throw new Error("Wallet returned an unreadable contract response.");
+    }
+
+    return BigInt(response);
+  };
+
+  const waitForWalletReceipt = async (hash: Hex) => {
+    const provider = wallet.selectedWallet?.provider;
+    if (!provider) {
+      throw new Error("Wallet provider is unavailable.");
+    }
+
+    const timeoutAt = Date.now() + 180_000;
+
+    while (Date.now() < timeoutAt) {
+      const receipt = await provider.request({
+        method: "eth_getTransactionReceipt",
+        params: [hash]
+      });
+
+      if (receipt && typeof receipt === "object") {
+        const status =
+          "status" in receipt ? (receipt as { status?: string }).status : undefined;
+
+        if (status === "0x0") {
+          throw new Error("Transaction reverted.");
+        }
+
+        return receipt;
+      }
+
+      await sleep(1_500);
+    }
+
+    throw new Error("Timed out waiting for transaction confirmation.");
+  };
+
   useEffect(() => {
     if (sourceChainId !== 1) {
       setSourceChainId(1);
@@ -345,25 +409,41 @@ export function SwapWidget() {
       setInputTokenBalanceLabel("Loading balance...");
 
       try {
-        const publicClient = wallet.getPublicClient(sourceChainId);
         const rawBalance =
           inputToken.address.toLowerCase() === NATIVE_TOKEN_ADDRESS
-            ? await publicClient.getBalance({
-                address: wallet.address as Address
+            ? await wallet.selectedWallet?.provider?.request({
+                method: "eth_getBalance",
+                params: [wallet.address, "latest"]
               })
-            : await publicClient.readContract({
-                address: inputToken.address as Address,
-                abi: ERC20_BALANCE_ABI,
-                functionName: "balanceOf",
-                args: [wallet.address as Address]
-              });
+            : await readProviderUint256(
+                inputToken.address as Address,
+                encodeFunctionData({
+                  abi: ERC20_BALANCE_ABI,
+                  functionName: "balanceOf",
+                  args: [wallet.address as Address]
+                })
+              );
+
+        const normalizedBalance =
+          typeof rawBalance === "bigint"
+            ? rawBalance
+            : typeof rawBalance === "string"
+              ? BigInt(rawBalance)
+              : null;
+
+        if (normalizedBalance === null) {
+          throw new Error("Unreadable wallet balance response.");
+        }
 
         if (!isActive) {
           return;
         }
 
         setInputTokenBalanceLabel(
-          `Balance: ${formatTokenAmount(rawBalance.toString(), inputToken.decimals)} ${inputToken.symbol}`
+          `Balance: ${formatTokenAmount(
+            normalizedBalance.toString(),
+            inputToken.decimals
+          )} ${inputToken.symbol}`
         );
       } catch {
         if (!isActive) {
@@ -503,12 +583,14 @@ export function SwapWidget() {
     const currentAllowance =
       quotedAllowance !== undefined
         ? BigInt(quotedAllowance)
-        : await wallet.getPublicClient(sourceChainId).readContract({
-            address: inputToken.address as Address,
-            abi: ERC20_ABI,
-            functionName: "allowance",
-            args: [wallet.address as Address, spender as Address]
-          });
+        : await readProviderUint256(
+            inputToken.address as Address,
+            encodeFunctionData({
+              abi: ERC20_ABI,
+              functionName: "allowance",
+              args: [wallet.address as Address, spender as Address]
+            })
+          );
 
     if (currentAllowance >= BigInt(approvalAmount)) {
       setSwapStage("approvalConfirmed");
@@ -534,9 +616,7 @@ export function SwapWidget() {
 
     setSwapStage("approvalPending");
     setSwapStatus(`Approval submitted: ${shortHash(approvalHash)}`);
-    await wallet.getPublicClient(sourceChainId).waitForTransactionReceipt({
-      hash: approvalHash
-    });
+    await waitForWalletReceipt(approvalHash);
     setSwapStage("approvalConfirmed");
     setSwapStatus("Approval confirmed. Preparing swap transaction.");
   };
@@ -588,8 +668,6 @@ export function SwapWidget() {
       });
       await nextFrame();
 
-      const publicClient = wallet.getPublicClient(sourceChainId);
-
       const txHash = await wallet.sendTransaction(sourceChainId, {
         data: (quote.route.transaction?.data ?? "0x") as Hex,
         gas: quote.route.transaction?.gas
@@ -607,7 +685,7 @@ export function SwapWidget() {
       setSwapStage("swapPending");
       setSourceTxHash(txHash);
       setSwapStatus(`Swap submitted: ${shortHash(txHash)}`);
-      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      await waitForWalletReceipt(txHash);
       setSwapStage("complete");
       setSwapStatus("Swap complete.");
     } catch (caughtError) {
@@ -784,10 +862,6 @@ export function SwapWidget() {
                   )} ${outputToken.symbol}`.trim()
                 : "--"}
             </strong>
-          </div>
-          <div className="bw-summary-row">
-            <span>Time estimate</span>
-            <strong>{quote ? "Ethereum confirmation" : "Unavailable"}</strong>
           </div>
           <div className="bw-progress">
             <div className="bw-progress-heading">
