@@ -60,6 +60,7 @@ const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606e
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
 const REMOTE_ETHEREUM_TOKEN_LIST_URL =
   "https://raw.githubusercontent.com/viaprotocol/tokenlists/main/tokenlists/ethereum.json";
+const QUOTE_REFRESH_INTERVAL_MS = 30_000;
 
 function getDefaultToken(address: string) {
   return (
@@ -406,6 +407,8 @@ export function SwapWidget() {
   const [swapStatus, setSwapStatus] = useState<string | null>(null);
   const [sourceTxHash, setSourceTxHash] = useState<string | null>(null);
   const [catalogTokens, setCatalogTokens] = useState<TokenOption[]>([]);
+  const [quoteLastUpdatedAt, setQuoteLastUpdatedAt] = useState<number | null>(null);
+  const [quoteRefreshLabel, setQuoteRefreshLabel] = useState<string | null>(null);
 
   const tokenOptions = useMemo(
     () => mergeTokenOptions(ETHEREUM_TOKENS, catalogTokens, [inputToken, outputToken]),
@@ -478,21 +481,31 @@ export function SwapWidget() {
     };
   }, []);
 
-  const handleGetQuote = async () => {
+  const requestQuote = async (reason: "manual" | "refresh") => {
     if (!wallet.address) {
-      setQuoteError("Connect a wallet before requesting a quote.");
+      if (reason === "manual") {
+        setQuoteError("Connect a wallet before requesting a quote.");
+      }
       return;
     }
 
     if (!amount || Number(amount) <= 0) {
-      setQuoteError("Enter an amount greater than zero.");
+      if (reason === "manual") {
+        setQuoteError("Enter an amount greater than zero.");
+      }
       return;
     }
 
-    setQuoteLoading(true);
+    if (reason === "manual") {
+      setQuoteLoading(true);
+      setQuoteRefreshLabel(null);
+      setSwapStatus(null);
+      setSourceTxHash(null);
+    } else {
+      setQuoteRefreshLabel("Refreshing quote...");
+    }
+
     setQuoteError(null);
-    setSwapStatus(null);
-    setSourceTxHash(null);
 
     try {
       const normalizedAmount = parseUnits(amount, inputToken.decimals).toString();
@@ -511,17 +524,52 @@ export function SwapWidget() {
           route: response.quote
         });
       });
+      setQuoteLastUpdatedAt(Date.now());
+      setQuoteRefreshLabel(reason === "refresh" ? "Quote refreshed" : "Quote updated");
     } catch (caughtError) {
-      setQuote(null);
-      setQuoteError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Failed to fetch a quote from 0x."
-      );
+      if (reason === "manual") {
+        setQuote(null);
+        setQuoteError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Failed to fetch a quote from 0x."
+        );
+      } else {
+        setQuoteRefreshLabel("Refresh failed");
+      }
     } finally {
-      setQuoteLoading(false);
+      if (reason === "manual") {
+        setQuoteLoading(false);
+      }
     }
   };
+
+  const handleGetQuote = async () => {
+    await requestQuote("manual");
+  };
+
+  useEffect(() => {
+    if (!quote || !wallet.address || swapLoading) {
+      return;
+    }
+
+    const refreshTimer = window.setInterval(() => {
+      void requestQuote("refresh");
+    }, QUOTE_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+    };
+  }, [
+    amount,
+    inputToken.address,
+    inputToken.decimals,
+    outputToken.address,
+    quote,
+    sourceChainId,
+    swapLoading,
+    wallet.address
+  ]);
 
   const ensureApprovalIfNeeded = async (
     quoteRoute: ZeroExQuote,
@@ -833,6 +881,17 @@ export function SwapWidget() {
             <strong>{swapStatus ?? "Idle"}</strong>
           </div>
         </div>
+
+        {quoteLastUpdatedAt ? (
+          <p className="bw-footnote">
+            {quoteRefreshLabel ?? "Quote updated"} at{" "}
+            {new Date(quoteLastUpdatedAt).toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit"
+            })}
+          </p>
+        ) : null}
 
         {quote?.requestId ? (
           <p className="bw-footnote">0x request ID: {quote.requestId}</p>
