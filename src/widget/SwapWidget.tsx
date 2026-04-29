@@ -907,10 +907,6 @@ export function SwapWidget() {
           <p className="bw-footnote">0x request ID: {quote.requestId}</p>
         ) : null}
 
-        {sourceTxHash ? (
-          <p className="bw-footnote">Source tx: {sourceTxHash}</p>
-        ) : null}
-
         {quoteError ? <p className="bw-error">{quoteError}</p> : null}
       </div>
     </div>
