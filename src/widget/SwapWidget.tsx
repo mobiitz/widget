@@ -61,6 +61,10 @@ const DEFAULT_SOURCE_CHAIN_ID = 1;
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
 const DEFAULT_DESTINATION_CHAIN_ID = 1;
 const QUOTE_REFRESH_INTERVAL_MS = 30_000;
+const MAX_NATIVE_GAS_LIMIT_BUFFER: Record<number, bigint> = {
+  1: 350_000n,
+  8453: 250_000n
+};
 const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
   (token) =>
     (token.chainId === 1 &&
@@ -341,6 +345,7 @@ export function SwapWidget() {
   const [quoteRefreshLabel, setQuoteRefreshLabel] = useState<string | null>(null);
   const [inputTokenBalanceLabel, setInputTokenBalanceLabel] = useState<string | null>(null);
   const [inputTokenBalanceRaw, setInputTokenBalanceRaw] = useState<bigint | null>(null);
+  const [maxAmount, setMaxAmount] = useState<string | null>(null);
   const sourceChainId = inputToken.chainId;
   const sourceChainName = findSupportedChain(sourceChainId)?.name ?? `Chain ${sourceChainId}`;
 
@@ -507,6 +512,81 @@ export function SwapWidget() {
     sourceChainId,
     sourceChainName,
     wallet.address,
+    wallet.chainId,
+    wallet.selectedWalletId
+  ]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadMaxAmount = async () => {
+      if (inputTokenBalanceRaw === null) {
+        setMaxAmount(null);
+        return;
+      }
+
+      if (wallet.chainId !== sourceChainId) {
+        setMaxAmount(null);
+        return;
+      }
+
+      try {
+        if (inputToken.address.toLowerCase() !== NATIVE_TOKEN_ADDRESS) {
+          const formatted = formatUnits(inputTokenBalanceRaw, inputToken.decimals);
+          if (!isActive) {
+            return;
+          }
+
+          setMaxAmount(Number(formatted) > 0 ? formatted : "0");
+          return;
+        }
+
+        const provider = wallet.selectedWallet?.provider;
+        if (!provider) {
+          setMaxAmount(null);
+          return;
+        }
+
+        const gasPriceResponse = await provider.request({
+          method: "eth_gasPrice"
+        });
+
+        if (typeof gasPriceResponse !== "string") {
+          throw new Error("Unreadable wallet gas price response.");
+        }
+
+        const gasPrice = BigInt(gasPriceResponse);
+        const gasLimitBuffer =
+          MAX_NATIVE_GAS_LIMIT_BUFFER[sourceChainId] ?? 300_000n;
+        const reserveAmount = (gasPrice * gasLimitBuffer * 12n) / 10n;
+        const spendableAmount =
+          inputTokenBalanceRaw > reserveAmount ? inputTokenBalanceRaw - reserveAmount : 0n;
+        const formatted = formatUnits(spendableAmount, inputToken.decimals);
+
+        if (!isActive) {
+          return;
+        }
+
+        setMaxAmount(Number(formatted) > 0 ? formatted : "0");
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        setMaxAmount(null);
+      }
+    };
+
+    void loadMaxAmount();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    inputToken.address,
+    inputToken.decimals,
+    inputTokenBalanceRaw,
+    sourceChainId,
     wallet.chainId,
     wallet.selectedWalletId
   ]);
@@ -746,18 +826,6 @@ export function SwapWidget() {
   const progressValue = SWAP_PROGRESS[swapStage];
   const selectedWalletLabel = wallet.selectedWallet?.label ?? "Wallet";
   const selectedWalletInstalled = Boolean(wallet.selectedWallet?.installed);
-  const maxAmount = useMemo(() => {
-    if (inputTokenBalanceRaw === null) {
-      return null;
-    }
-
-    try {
-      const formatted = formatUnits(inputTokenBalanceRaw, inputToken.decimals);
-      return Number(formatted) > 0 ? formatted : "0";
-    } catch {
-      return null;
-    }
-  }, [inputToken.decimals, inputTokenBalanceRaw]);
   const walletActionLabel = wallet.isConnecting
     ? `Connecting ${selectedWalletLabel}...`
     : wallet.isConnected
@@ -893,7 +961,7 @@ export function SwapWidget() {
               <span>Amount to spend</span>
               <button
                 className="bw-inline-action"
-                disabled={maxAmount === null || wallet.chainId !== sourceChainId}
+                disabled={maxAmount === null || maxAmount === "0" || wallet.chainId !== sourceChainId}
                 onClick={() => {
                   if (!maxAmount) {
                     return;
