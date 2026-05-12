@@ -65,6 +65,10 @@ const MAX_NATIVE_GAS_LIMIT_BUFFER: Record<number, bigint> = {
   1: 350_000n,
   8453: 250_000n
 };
+const MIN_NATIVE_GAS_RESERVE: Record<number, bigint> = {
+  1: 750_000_000_000_000n,
+  8453: 80_000_000_000_000n
+};
 const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
   (token) =>
     (token.chainId === 1 &&
@@ -558,7 +562,10 @@ export function SwapWidget() {
         const gasPrice = BigInt(gasPriceResponse);
         const gasLimitBuffer =
           MAX_NATIVE_GAS_LIMIT_BUFFER[sourceChainId] ?? 300_000n;
-        const reserveAmount = (gasPrice * gasLimitBuffer * 12n) / 10n;
+        const estimatedReserve = (gasPrice * gasLimitBuffer * 15n) / 10n;
+        const minimumReserve = MIN_NATIVE_GAS_RESERVE[sourceChainId] ?? 100_000_000_000_000n;
+        const reserveAmount =
+          estimatedReserve > minimumReserve ? estimatedReserve : minimumReserve;
         const spendableAmount =
           inputTokenBalanceRaw > reserveAmount ? inputTokenBalanceRaw - reserveAmount : 0n;
         const formatted = formatUnits(spendableAmount, inputToken.decimals);
