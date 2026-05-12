@@ -200,6 +200,12 @@
   letter-spacing: -0.01em;
 }
 
+.bw-field-label-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
 .bw-token-field > span {
   color: #d6e3f8;
   font-size: 0.86rem;
@@ -219,6 +225,31 @@
 .bw-field small {
   color: #7290bd;
   font-size: 0.74rem;
+}
+
+.bw-inline-action {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: #7fdcff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0;
+  transition:
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.bw-inline-action:hover:not(:disabled) {
+  color: #b5ebff;
+}
+
+.bw-inline-action:disabled {
+  color: #56779f;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .bw-picker-trigger {

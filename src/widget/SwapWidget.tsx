@@ -340,6 +340,7 @@ export function SwapWidget() {
   const [quoteLastUpdatedAt, setQuoteLastUpdatedAt] = useState<number | null>(null);
   const [quoteRefreshLabel, setQuoteRefreshLabel] = useState<string | null>(null);
   const [inputTokenBalanceLabel, setInputTokenBalanceLabel] = useState<string | null>(null);
+  const [inputTokenBalanceRaw, setInputTokenBalanceRaw] = useState<bigint | null>(null);
   const sourceChainId = inputToken.chainId;
   const sourceChainName = findSupportedChain(sourceChainId)?.name ?? `Chain ${sourceChainId}`;
 
@@ -423,6 +424,7 @@ export function SwapWidget() {
     const loadInputTokenBalance = async () => {
       if (!wallet.address) {
         setInputTokenBalanceLabel(null);
+        setInputTokenBalanceRaw(null);
         return;
       }
 
@@ -437,6 +439,7 @@ export function SwapWidget() {
           }
 
           setInputTokenBalanceLabel(`Switch to ${sourceChainName} to view balance`);
+          setInputTokenBalanceRaw(null);
         }
         return;
       }
@@ -474,6 +477,7 @@ export function SwapWidget() {
           return;
         }
 
+        setInputTokenBalanceRaw(normalizedBalance);
         setInputTokenBalanceLabel(
           `Balance: ${formatTokenAmount(
             normalizedBalance.toString(),
@@ -485,6 +489,7 @@ export function SwapWidget() {
           return;
         }
 
+        setInputTokenBalanceRaw(null);
         setInputTokenBalanceLabel("Balance unavailable");
       }
     };
@@ -741,6 +746,18 @@ export function SwapWidget() {
   const progressValue = SWAP_PROGRESS[swapStage];
   const selectedWalletLabel = wallet.selectedWallet?.label ?? "Wallet";
   const selectedWalletInstalled = Boolean(wallet.selectedWallet?.installed);
+  const maxAmount = useMemo(() => {
+    if (inputTokenBalanceRaw === null) {
+      return null;
+    }
+
+    try {
+      const formatted = formatUnits(inputTokenBalanceRaw, inputToken.decimals);
+      return Number(formatted) > 0 ? formatted : "0";
+    } catch {
+      return null;
+    }
+  }, [inputToken.decimals, inputTokenBalanceRaw]);
   const walletActionLabel = wallet.isConnecting
     ? `Connecting ${selectedWalletLabel}...`
     : wallet.isConnected
@@ -872,7 +889,26 @@ export function SwapWidget() {
           </div>
 
           <label className="bw-field bw-field-full">
-            <span>Amount to spend</span>
+            <span className="bw-field-label-row">
+              <span>Amount to spend</span>
+              <button
+                className="bw-inline-action"
+                disabled={maxAmount === null || wallet.chainId !== sourceChainId}
+                onClick={() => {
+                  if (!maxAmount) {
+                    return;
+                  }
+
+                  setAmount(maxAmount);
+                  setQuote(null);
+                  setSwapStage("idle");
+                  setSwapStatus(null);
+                }}
+                type="button"
+              >
+                Max
+              </button>
+            </span>
             <input
               inputMode="decimal"
               min="0"
