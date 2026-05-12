@@ -317,7 +317,6 @@ function TokenPicker({
 
 export function SwapWidget() {
   const wallet = useWallet();
-  const [sourceChainId, setSourceChainId] = useState(DEFAULT_SOURCE_CHAIN_ID);
   const [inputToken, setInputToken] = useState<TokenOption>(() =>
     getDefaultToken(DEFAULT_SOURCE_TOKEN, DEFAULT_SOURCE_CHAIN_ID)
   );
@@ -335,6 +334,8 @@ export function SwapWidget() {
   const [quoteLastUpdatedAt, setQuoteLastUpdatedAt] = useState<number | null>(null);
   const [quoteRefreshLabel, setQuoteRefreshLabel] = useState<string | null>(null);
   const [inputTokenBalanceLabel, setInputTokenBalanceLabel] = useState<string | null>(null);
+  const sourceChainId = inputToken.chainId;
+  const sourceChainName = findSupportedChain(sourceChainId)?.name ?? `Chain ${sourceChainId}`;
 
   const readProviderUint256 = async (
     contractAddress: Address,
@@ -401,25 +402,6 @@ export function SwapWidget() {
   );
 
   useEffect(() => {
-    setSourceChainId(inputToken.chainId);
-  }, [inputToken.chainId]);
-
-  useEffect(() => {
-    const matchingOutputToken = availableOutputOptions[0];
-
-    if (!matchingOutputToken) {
-      return;
-    }
-
-    if (
-      outputToken.chainId !== matchingOutputToken.chainId ||
-      outputToken.address.toLowerCase() !== matchingOutputToken.address.toLowerCase()
-    ) {
-      setOutputToken(matchingOutputToken);
-    }
-  }, [availableOutputOptions, outputToken.address, outputToken.chainId]);
-
-  useEffect(() => {
     if (!wallet.address || wallet.chainId === sourceChainId) {
       return;
     }
@@ -439,7 +421,7 @@ export function SwapWidget() {
       }
 
       if (wallet.chainId !== sourceChainId) {
-        setInputTokenBalanceLabel("Switching to Ethereum...");
+        setInputTokenBalanceLabel(`Switching to ${sourceChainName}...`);
 
         try {
           await wallet.switchToChain(sourceChainId);
@@ -448,7 +430,7 @@ export function SwapWidget() {
             return;
           }
 
-          setInputTokenBalanceLabel("Switch to Ethereum to view balance");
+          setInputTokenBalanceLabel(`Switch to ${sourceChainName} to view balance`);
         }
         return;
       }
@@ -508,9 +490,11 @@ export function SwapWidget() {
     };
   }, [
     inputToken.address,
+    inputToken.chainId,
     inputToken.decimals,
     inputToken.symbol,
     sourceChainId,
+    sourceChainName,
     wallet.address,
     wallet.chainId,
     wallet.selectedWalletId
@@ -850,7 +834,13 @@ export function SwapWidget() {
             <TokenPicker
               label="Input token"
               onSelect={(token) => {
+                const nextOutputToken = OUTPUT_TOKEN_OPTIONS.find(
+                  (outputOption) => outputOption.chainId === token.chainId
+                );
                 setInputToken(token);
+                if (nextOutputToken) {
+                  setOutputToken(nextOutputToken);
+                }
                 setQuote(null);
                 setSwapStage("idle");
                 setSwapStatus(null);
