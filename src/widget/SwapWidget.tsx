@@ -57,20 +57,24 @@ const ERC20_ABI = parseAbi([
 ]);
 const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
 const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
+const DEFAULT_SOURCE_CHAIN_ID = 1;
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
-const DEFAULT_INPUT_TOKEN_ADDRESSES = new Set([
-  DEFAULT_SOURCE_TOKEN.toLowerCase(),
-  NATIVE_TOKEN_ADDRESS,
-  getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7").toLowerCase(),
-  getAddress("0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d").toLowerCase()
-]);
+const DEFAULT_DESTINATION_CHAIN_ID = 1;
 const QUOTE_REFRESH_INTERVAL_MS = 30_000;
 const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
-  (token) => DEFAULT_INPUT_TOKEN_ADDRESSES.has(token.address.toLowerCase())
+  (token) =>
+    (token.chainId === 1 &&
+      [
+        DEFAULT_SOURCE_TOKEN.toLowerCase(),
+        NATIVE_TOKEN_ADDRESS,
+        getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7").toLowerCase(),
+        getAddress("0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d").toLowerCase()
+      ].includes(token.address.toLowerCase())) ||
+    (token.chainId === 8453 &&
+      token.address.toLowerCase() ===
+        getAddress("0x833589fCD6EDb6E08f4c7C32D4f71b54bdA02913").toLowerCase())
 );
-const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
-  (token) => token.address.toLowerCase() === DEFAULT_DESTINATION_TOKEN.toLowerCase()
-);
+const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter((token) => token.symbol === "MBTC");
 const SWAP_PROGRESS: Record<SwapStage, number> = {
   idle: 0,
   preparing: 10,
@@ -98,20 +102,23 @@ const SWAP_STAGE_LABEL: Record<SwapStage, string> = {
   error: "Swap failed"
 };
 
-function getDefaultToken(address: string) {
+function getDefaultToken(address: string, chainId: number) {
   return (
     ETHEREUM_TOKENS.find(
-      (token) => token.address.toLowerCase() === address.toLowerCase()
+      (token) =>
+        token.chainId === chainId &&
+        token.address.toLowerCase() === address.toLowerCase()
     ) ?? ETHEREUM_TOKENS[0]
   );
 }
 
-function getTokenIconUrl(address: string) {
+function getTokenIconUrl(address: string, chainId: number) {
   if (address.toLowerCase() === NATIVE_TOKEN_ADDRESS) {
     return "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/ethereum/info/logo.png";
   }
 
-  return `https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/ethereum/assets/${getAddress(address)}/logo.png`;
+  const chainSlug = chainId === 8453 ? "base" : "ethereum";
+  return `https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/${chainSlug}/assets/${getAddress(address)}/logo.png`;
 }
 
 function formatTokenAmount(amount: string | undefined, decimals: number) {
@@ -157,10 +164,12 @@ function sleep(ms: number) {
 }
 function TokenIcon({
   address,
+  chainId,
   logoURI,
   symbol
 }: {
   address: string;
+  chainId: number;
   logoURI?: string;
   symbol: string;
 }) {
@@ -179,7 +188,7 @@ function TokenIcon({
       onError={() => {
         setImageFailed(true);
       }}
-      src={logoURI || getTokenIconUrl(address)}
+      src={logoURI || getTokenIconUrl(address, chainId)}
     />
   );
 }
@@ -242,6 +251,7 @@ function TokenPicker({
         <span className="bw-picker-value">
           <TokenIcon
             address={selectedToken.address}
+            chainId={selectedToken.chainId}
             logoURI={selectedToken.logoURI}
             symbol={selectedToken.symbol}
           />
@@ -271,11 +281,12 @@ function TokenPicker({
             {filteredOptions.map((token) => (
               <button
                 className={`bw-token-option${
+                  token.chainId === selectedToken.chainId &&
                   token.address.toLowerCase() === selectedToken.address.toLowerCase()
                     ? " bw-token-option-active"
                     : ""
                 }`}
-                key={token.address}
+                key={`${token.chainId}:${token.address}`}
                 onClick={() => {
                   onSelect(token);
                   setIsOpen(false);
@@ -285,6 +296,7 @@ function TokenPicker({
                 <span className="bw-token-option-main">
                   <TokenIcon
                     address={token.address}
+                    chainId={token.chainId}
                     logoURI={token.logoURI}
                     symbol={token.symbol}
                   />
@@ -305,13 +317,12 @@ function TokenPicker({
 
 export function SwapWidget() {
   const wallet = useWallet();
-  const [sourceChainId, setSourceChainId] = useState(1);
-  const [destinationChainId, setDestinationChainId] = useState(1);
+  const [sourceChainId, setSourceChainId] = useState(DEFAULT_SOURCE_CHAIN_ID);
   const [inputToken, setInputToken] = useState<TokenOption>(() =>
-    getDefaultToken(DEFAULT_SOURCE_TOKEN)
+    getDefaultToken(DEFAULT_SOURCE_TOKEN, DEFAULT_SOURCE_CHAIN_ID)
   );
   const [outputToken, setOutputToken] = useState<TokenOption>(() =>
-    getDefaultToken(DEFAULT_DESTINATION_TOKEN)
+    getDefaultToken(DEFAULT_DESTINATION_TOKEN, DEFAULT_DESTINATION_CHAIN_ID)
   );
   const [amount, setAmount] = useState("1");
   const [quote, setQuote] = useState<QuoteState | null>(null);
@@ -383,14 +394,40 @@ export function SwapWidget() {
     throw new Error("Timed out waiting for transaction confirmation.");
   };
 
+  const availableOutputOptions = useMemo(
+    () =>
+      OUTPUT_TOKEN_OPTIONS.filter((token) => token.chainId === inputToken.chainId),
+    [inputToken.chainId]
+  );
+
   useEffect(() => {
-    if (sourceChainId !== 1) {
-      setSourceChainId(1);
+    setSourceChainId(inputToken.chainId);
+  }, [inputToken.chainId]);
+
+  useEffect(() => {
+    const matchingOutputToken = availableOutputOptions[0];
+
+    if (!matchingOutputToken) {
+      return;
     }
-    if (destinationChainId !== 1) {
-      setDestinationChainId(1);
+
+    if (
+      outputToken.chainId !== matchingOutputToken.chainId ||
+      outputToken.address.toLowerCase() !== matchingOutputToken.address.toLowerCase()
+    ) {
+      setOutputToken(matchingOutputToken);
     }
-  }, [destinationChainId, sourceChainId]);
+  }, [availableOutputOptions, outputToken.address, outputToken.chainId]);
+
+  useEffect(() => {
+    if (!wallet.address || wallet.chainId === sourceChainId) {
+      return;
+    }
+
+    void wallet.switchToChain(sourceChainId).catch(() => {
+      // The balance loader and swap flow surface a clearer status if the user rejects.
+    });
+  }, [sourceChainId, wallet]);
 
   useEffect(() => {
     let isActive = true;
@@ -815,6 +852,8 @@ export function SwapWidget() {
               onSelect={(token) => {
                 setInputToken(token);
                 setQuote(null);
+                setSwapStage("idle");
+                setSwapStatus(null);
               }}
               options={INPUT_TOKEN_OPTIONS}
               selectedToken={inputToken}
@@ -828,8 +867,10 @@ export function SwapWidget() {
               onSelect={(token) => {
                 setOutputToken(token);
                 setQuote(null);
+                setSwapStage("idle");
+                setSwapStatus(null);
               }}
-              options={OUTPUT_TOKEN_OPTIONS}
+              options={availableOutputOptions}
               selectedToken={outputToken}
             />
           </div>
