@@ -19,6 +19,13 @@ export const ETHEREUM_TOKENS: TokenOption[] = [
     symbol: "ETH"
   },
   {
+    address: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    chainId: 8453,
+    decimals: 18,
+    name: "ETH on Base",
+    symbol: "ETH"
+  },
+  {
     address: "0xC02aaA39b223FE8D0A0E5C4F27eAD9083C756Cc2",
     chainId: 1,
     decimals: 18,

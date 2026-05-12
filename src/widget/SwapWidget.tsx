@@ -70,6 +70,7 @@ const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
         getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7").toLowerCase(),
         getAddress("0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d").toLowerCase()
       ].includes(token.address.toLowerCase())) ||
+    (token.chainId === 8453 && token.address.toLowerCase() === NATIVE_TOKEN_ADDRESS) ||
     (token.chainId === 8453 &&
       token.address.toLowerCase() ===
         getAddress("0x833589fCD6EDb6E08f4c7C32D4f71b54bdA02913").toLowerCase())
