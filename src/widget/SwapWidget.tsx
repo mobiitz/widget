@@ -212,7 +212,12 @@ function TokenPicker({
     }
 
     const handleDocumentPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+      const clickedInside =
+        (containerRef.current && eventPath.includes(containerRef.current)) ||
+        containerRef.current?.contains(event.target as Node);
+
+      if (!clickedInside) {
         setIsOpen(false);
       }
     };
