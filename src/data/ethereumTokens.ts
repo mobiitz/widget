@@ -76,14 +76,6 @@ export const ETHEREUM_TOKENS: TokenOption[] = [
   },
   {
     address: "0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B",
-    chainId: 1,
-    decimals: 18,
-    logoURI: MBTC_LOGO_DATA_URI,
-    name: "MBTC on ETH",
-    symbol: "MBTC"
-  },
-  {
-    address: "0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B",
     chainId: 8453,
     decimals: 18,
     logoURI: MBTC_LOGO_DATA_URI,

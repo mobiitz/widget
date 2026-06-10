@@ -56,10 +56,10 @@ const ERC20_ABI = parseAbi([
   "function approve(address spender, uint256 amount) returns (bool)"
 ]);
 const ERC20_BALANCE_ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
-const DEFAULT_SOURCE_TOKEN = getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
-const DEFAULT_SOURCE_CHAIN_ID = 1;
+const DEFAULT_SOURCE_TOKEN = getAddress("0x833589fCD6EDb6E08f4c7C32D4f71b54bdA02913");
+const DEFAULT_SOURCE_CHAIN_ID = 8453;
 const DEFAULT_DESTINATION_TOKEN = getAddress("0x3898257dD2Cd6d2A3b6e3435f73568A725262b9B");
-const DEFAULT_DESTINATION_CHAIN_ID = 1;
+const DEFAULT_DESTINATION_CHAIN_ID = 8453;
 const QUOTE_REFRESH_INTERVAL_MS = 30_000;
 const MAX_NATIVE_GAS_LIMIT_BUFFER: Record<number, bigint> = {
   1: 350_000n,
@@ -71,19 +71,14 @@ const MIN_NATIVE_GAS_RESERVE: Record<number, bigint> = {
 };
 const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
   (token) =>
-    (token.chainId === 1 &&
-      [
-        DEFAULT_SOURCE_TOKEN.toLowerCase(),
-        NATIVE_TOKEN_ADDRESS,
-        getAddress("0xdAC17F958D2ee523a2206206994597C13D831ec7").toLowerCase(),
-        getAddress("0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d").toLowerCase()
-      ].includes(token.address.toLowerCase())) ||
     (token.chainId === 8453 && token.address.toLowerCase() === NATIVE_TOKEN_ADDRESS) ||
     (token.chainId === 8453 &&
       token.address.toLowerCase() ===
         getAddress("0x833589fCD6EDb6E08f4c7C32D4f71b54bdA02913").toLowerCase())
 );
-const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter((token) => token.symbol === "MBTC");
+const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
+  (token) => token.symbol === "MBTC" && token.chainId === 8453
+);
 const SWAP_PROGRESS: Record<SwapStage, number> = {
   idle: 0,
   preparing: 10,
@@ -411,11 +406,7 @@ export function SwapWidget() {
     throw new Error("Timed out waiting for transaction confirmation.");
   };
 
-  const availableOutputOptions = useMemo(
-    () =>
-      OUTPUT_TOKEN_OPTIONS.filter((token) => token.chainId === inputToken.chainId),
-    [inputToken.chainId]
-  );
+  const availableOutputOptions = useMemo(() => OUTPUT_TOKEN_OPTIONS, []);
 
   useEffect(() => {
     if (!wallet.address || wallet.chainId === sourceChainId) {
@@ -932,13 +923,8 @@ export function SwapWidget() {
             <TokenPicker
               label="Input token"
               onSelect={(token) => {
-                const nextOutputToken = OUTPUT_TOKEN_OPTIONS.find(
-                  (outputOption) => outputOption.chainId === token.chainId
-                );
                 setInputToken(token);
-                if (nextOutputToken) {
-                  setOutputToken(nextOutputToken);
-                }
+                setOutputToken(OUTPUT_TOKEN_OPTIONS[0]);
                 setQuote(null);
                 setSwapStage("idle");
                 setSwapStatus(null);
