@@ -71,14 +71,15 @@ const MIN_NATIVE_GAS_RESERVE: Record<number, bigint> = {
 };
 const INPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
   (token) =>
+    (token.chainId === 1 &&
+      token.address.toLowerCase() ===
+        getAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").toLowerCase()) ||
     (token.chainId === 8453 && token.address.toLowerCase() === NATIVE_TOKEN_ADDRESS) ||
     (token.chainId === 8453 &&
       token.address.toLowerCase() ===
         getAddress("0x833589fCD6EDb6E08f4c7C32D4f71b54bdA02913").toLowerCase())
 );
-const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter(
-  (token) => token.symbol === "MBTC" && token.chainId === 8453
-);
+const OUTPUT_TOKEN_OPTIONS = ETHEREUM_TOKENS.filter((token) => token.symbol === "MBTC");
 const SWAP_PROGRESS: Record<SwapStage, number> = {
   idle: 0,
   preparing: 10,
@@ -406,7 +407,10 @@ export function SwapWidget() {
     throw new Error("Timed out waiting for transaction confirmation.");
   };
 
-  const availableOutputOptions = useMemo(() => OUTPUT_TOKEN_OPTIONS, []);
+  const availableOutputOptions = useMemo(
+    () => OUTPUT_TOKEN_OPTIONS.filter((token) => token.chainId === inputToken.chainId),
+    [inputToken.chainId]
+  );
 
   useEffect(() => {
     if (!wallet.address || wallet.chainId === sourceChainId) {
@@ -923,8 +927,13 @@ export function SwapWidget() {
             <TokenPicker
               label="Input token"
               onSelect={(token) => {
+                const nextOutputToken = OUTPUT_TOKEN_OPTIONS.find(
+                  (outputOption) => outputOption.chainId === token.chainId
+                );
                 setInputToken(token);
-                setOutputToken(OUTPUT_TOKEN_OPTIONS[0]);
+                if (nextOutputToken) {
+                  setOutputToken(nextOutputToken);
+                }
                 setQuote(null);
                 setSwapStage("idle");
                 setSwapStatus(null);
